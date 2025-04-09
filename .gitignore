@@ -1,0 +1,45 @@
+# Node.js (React frontend)
+node_modules/
+build/
+dist/
+*.log
+npm-debug.log*
+
+# Python (Django backend)
+__pycache__/
+*.py[cod]
+*.sqlite3
+*.log
+*.pot
+*.pyc
+*.pyo
+*.pyd
+.Python
+db.sqlite3
+
+# Django env
+venv/
+.env
+.env.*
+
+# IDE / Editor folders
+.vscode/
+.idea/
+.DS_Store
+
+# GitHub workflow local cache
+.github/
+
+# Local runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Test coverage
+htmlcov/
+coverage.*
+.tox/
+.pytest_cache/
+
+# macOS system files
+.DS_Store
