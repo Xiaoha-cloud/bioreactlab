@@ -80,7 +80,7 @@ jobs:
 
     steps:
       - name: Deploy to Railway
-        uses: railwayapp/action@v1
+        uses: railwayapp/cli-action@v1
         with:
           service: backend
           token: ${{ secrets.RAILWAY_TOKEN }}
