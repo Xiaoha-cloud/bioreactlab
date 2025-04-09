@@ -27,8 +27,6 @@ venv/
 .idea/
 .DS_Store
 
-# GitHub workflow local cache
-.github/
 
 # Local runtime files
 *.pid

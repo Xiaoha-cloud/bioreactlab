@@ -79,9 +79,8 @@ jobs:
     container: ghcr.io/railwayapp/cli:latest
     env:
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      SVC_ID: bioreactlab
     steps:
       - uses: actions/checkout@v3
       - name: Deploy via Railway CLI
-        run: railway up --service=$SVC_ID
+        run: railway up
 
