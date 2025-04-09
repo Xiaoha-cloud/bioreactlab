@@ -76,15 +76,12 @@ jobs:
   deploy-backend:
     needs: build-and-test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-
+    container: ghcr.io/railwayapp/cli:latest
+    env:
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SVC_ID: bioreactlab
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
+      - name: Deploy via Railway CLI
+        run: railway up --service=$SVC_ID
 
-      - name: Deploy to Railway
-        uses: railwayapp/railway-action@v1
-        with:
-          railwayToken: ${{ secrets.RAILWAY_TOKEN }}
-          service: backend
-          environment: production
