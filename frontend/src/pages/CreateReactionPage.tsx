@@ -73,7 +73,7 @@ const CreateReactionPage = () => {
         }
     };
 
-    const renderMetaboliteRow = (metabolite: Metabolite, index: number, setState: SetStateFunction, isSubstrate = true) => (
+    const renderMetaboliteRow = (metabolite: Metabolite, index: number, setState: SetStateFunction) => (
         <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:bg-gray-100">
             <input
                 type="text"
@@ -151,7 +151,7 @@ const CreateReactionPage = () => {
                     <div className="bg-white rounded-xl shadow-md p-6">
                         <h2 className="text-xl font-semibold text-gray-800 mb-6">Substrates</h2>
                         {substrates.map((substrate, index) => 
-                            renderMetaboliteRow(substrate, index, setSubstrates, true)
+                            renderMetaboliteRow(substrate, index, setSubstrates)
                         )}
                         <button
                             type="button"
@@ -165,7 +165,7 @@ const CreateReactionPage = () => {
                     <div className="bg-white rounded-xl shadow-md p-6">
                         <h2 className="text-xl font-semibold text-gray-800 mb-6">Products</h2>
                         {products.map((product, index) => 
-                            renderMetaboliteRow(product, index, setProducts, false)
+                            renderMetaboliteRow(product, index, setProducts)
                         )}
                         <button
                             type="button"
