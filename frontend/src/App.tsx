@@ -1,33 +1,25 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
-import { AppBar, Toolbar, Typography, Container, Box } from '@mui/material';
-import { Link } from 'react-router-dom';
-import './App.css'
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from '@mui/material/styles';
+import CssBaseline from '@mui/material/CssBaseline';
+import { theme } from './styles/theme';
+import './styles/global.css';
+import './styles/responsive.css';
+import HomePage from './pages/HomePage';
+import CreateReactionPage from './pages/CreateReactionPage';
 
-const App: React.FC = () => {
+function App() {
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar>
-          <Typography variant="h6" component={Link} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
-            BioReactLab
-          </Typography>
-          <Box sx={{ ml: 2 }}>
-            <Typography 
-              component={Link} 
-              to="/create-reaction" 
-              sx={{ textDecoration: 'none', color: 'inherit' }}
-            >
-              Create Reaction
-            </Typography>
-          </Box>
-        </Toolbar>
-      </AppBar>
-      <Container component="main" sx={{ mt: 4, mb: 4, flex: 1 }}>
-        <Outlet />
-      </Container>
-    </Box>
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/create-reaction" element={<CreateReactionPage />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
-};
+}
 
 export default App;

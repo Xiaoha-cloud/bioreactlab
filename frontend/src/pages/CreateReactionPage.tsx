@@ -4,7 +4,36 @@ import { AxiosError } from 'axios';
 import api from '../services/api';
 import { FormulaAutocomplete } from '../components/FormulaAutocomplete';
 import { FormulaBuilder } from '../components/FormulaBuilder';
-import { Button, TextField, MenuItem, Alert, Paper, Box, IconButton, Container, Typography, Chip, Dialog, DialogTitle, DialogContent, Grid } from '@mui/material';
+import { 
+    Button, 
+    TextField, 
+    MenuItem, 
+    Alert, 
+    Paper, 
+    Box, 
+    IconButton, 
+    Container, 
+    Typography, 
+    Chip, 
+    Dialog, 
+    DialogTitle, 
+    DialogContent, 
+    Grid,
+    AppBar,
+    Toolbar,
+    Stepper,
+    Step,
+    StepLabel,
+    Card,
+    CardContent,
+    CardActions,
+    Divider,
+    Fade,
+    Grow,
+    Zoom,
+    useTheme,
+    useMediaQuery
+} from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { MoleculeViewer } from '../components/MoleculeViewer';
@@ -12,6 +41,7 @@ import OCL from 'openchemlib/full';
 import ChemicalEditor from '../components/ChemicalEditor';
 import { Edit as EditIcon } from '@mui/icons-material';
 import { StandaloneStructServiceProvider } from '../services/StandaloneStructServiceProvider';
+import { animations, transitions } from '../styles/animations';
 
 interface Formula {
     name: string;
@@ -49,6 +79,9 @@ interface ErrorResponse {
 }
 
 const CreateReactionPage: React.FC<{}> = () => {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const [skipAtomMapping] = useState(false);
     const [substrates, setSubstrates] = useState<Metabolite[]>([{ 
         name: '', 
@@ -390,258 +423,204 @@ const CreateReactionPage: React.FC<{}> = () => {
 
     const renderMetaboliteRow = (metabolite: Metabolite, index: number, type: 'reactant' | 'product') => {
         return (
-            <Box key={metabolite.id} sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <TextField
-                        label="Coefficient"
-                        type="number"
-                        value={metabolite.coefficient}
-                        onChange={(e) => handleInputChange(index, 'coefficient', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
-                        sx={{ width: '100px' }}
-                    />
-                    <TextField
-                        label="Name"
-                        value={metabolite.name}
-                        onChange={(e) => handleInputChange(index, 'name', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
-                        sx={{ width: '200px' }}
-                    />
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={() => handleVerify(index, type === 'reactant' ? setSubstrates : setProducts, type === 'reactant' ? substrates : products)}
-                        sx={{ minWidth: '100px' }}
-                    >
-                        Verify
-                    </Button>
-                        <FormulaAutocomplete
-                        initialValue={metabolite.formula || ''}
-                        value={metabolite.formula || ''}
-                        onChange={(newValue) => {
-                            handleInputChange(index, 'formula', newValue, type === 'reactant' ? setSubstrates : setProducts);
-                        }}
-                        apiEndpoint="/api/formula/search"
-                        onFormulaSelect={(formula) => {
-                            const updatedMetabolite: Metabolite = {
-                                ...metabolite,
-                                name: formula.name,
-                                formula: formula.formula,
-                                smiles: formula.smiles,
-                                verified: true,
-                                formulaSource: (formula.source === 'formula' ? 'calculated' : 'api') as 'calculated' | 'api',
-                                noStructure: formula.noStructure ?? false,
-                                warnings: formula.warnings ?? [],
-                                warning: formula.warnings?.join(', ') || '',
-                                stoichiometry: metabolite.stoichiometry,
-                                compartment: metabolite.compartment,
-                                type: metabolite.type,
-                                id: metabolite.id,
-                                coefficient: metabolite.coefficient
-                            };
-                            if (type === 'reactant') {
-                                setSubstrates(substrates.map(r => 
-                                    r.id === metabolite.id ? updatedMetabolite : r
-                                ));
-                            } else {
-                                setProducts(products.map(p => 
-                                    p.id === metabolite.id ? updatedMetabolite : p
-                                ));
-                            }
-                        }}
-                        onVerify={async (formula) => {
-                            try {
-                                const response = await api.post('/api/metabolite/validate/', {
-                                    name: formula.name,
-                                    type: metabolite.type
-                                });
-                                
-                                if (response.data.verified) {
-                                    const updatedMetabolite: Metabolite = {
-                                        ...metabolite,
-                                        name: formula.name,
-                                        formula: formula.formula,
-                                        smiles: response.data.structure,
-                                        verified: true,
-                                        formulaSource: 'api' as const,
-                                        noStructure: !response.data.structure,
-                                        warnings: response.data.structure ? [] : ['No structure found. Formula used instead.'],
-                                        warning: response.data.structure ? '' : 'No structure found. Formula used instead.',
-                                        stoichiometry: metabolite.stoichiometry,
-                                        compartment: metabolite.compartment,
-                                        type: metabolite.type,
-                                        id: metabolite.id,
-                                        coefficient: metabolite.coefficient
-                                    };
-                                    
-                                    if (type === 'reactant') {
-                                        setSubstrates(substrates.map(r => 
-                                            r.id === metabolite.id ? updatedMetabolite : r
-                                        ));
-                                    } else {
-                                        setProducts(products.map(p => 
-                                            p.id === metabolite.id ? updatedMetabolite : p
-                                        ));
-                                    }
-                                }
-                            } catch (error) {
-                                console.error('Error verifying metabolite:', error);
-                            }
-                        }}
-                        showWarnings={true}
-                        autoComplete={false}
-                        sx={{ width: '300px' }}
-                    />
-                    <IconButton 
-                        onClick={() => handleEditorOpen(metabolite)}
-                        color="primary"
-                        title="Edit structure"
-                    >
-                        <EditIcon />
-                    </IconButton>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        onClick={() => handleRemoveRow(index, type === 'reactant' ? setSubstrates : setProducts)}
-                    >
-                        Remove
-                    </Button>
-                </Box>
-                {metabolite.warning && (
-                    <Typography color="warning.main" sx={{ mt: 1 }}>
-                        {metabolite.warning}
-                    </Typography>
-                )}
-                {metabolite.smiles && (
-                    <Box sx={{ mt: 2 }}>
-                        <MoleculeViewer
-                            smiles={metabolite.smiles}
-                            width={300}
-                            height={200}
-                        />
-                    </Box>
-                )}
-            </Box>
+            <Grow in={true} timeout={300}>
+                <Card 
+                    sx={{ 
+                        mb: 2,
+                        ...transitions.card,
+                        backgroundColor: metabolite.verified ? 'rgba(46, 125, 50, 0.05)' : 'inherit'
+                    }}
+                >
+                    <CardContent>
+                        <Grid container spacing={2} alignItems="center">
+                            <Grid item xs={12} sm={6} md={3}>
+                                <TextField
+                                    fullWidth
+                                    label="Name"
+                                    value={metabolite.name}
+                                    onChange={(e) => handleInputChange(index, 'name', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                                    error={!!metabolite.warning}
+                                    helperText={metabolite.warning}
+                                    sx={transitions.input}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={2}>
+                                <TextField
+                                    fullWidth
+                                    label="Coefficient"
+                type="number"
+                                    value={metabolite.coefficient}
+                                    onChange={(e) => handleInputChange(index, 'coefficient', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                                    sx={transitions.input}
+                                />
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={2}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Compartment"
+                value={metabolite.compartment}
+                                    onChange={(e) => handleInputChange(index, 'compartment', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                                    sx={transitions.input}
+                                >
+                                    {compartments.map((option) => (
+                                        <MenuItem key={option} value={option}>
+                                            {option}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={2}>
+                                <TextField
+                                    fullWidth
+                                    select
+                                    label="Type"
+                value={metabolite.type}
+                                    onChange={(e) => handleInputChange(index, 'type', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                                    sx={transitions.input}
+                                >
+                                    {types.map((option) => (
+                                        <MenuItem key={option} value={option}>
+                                            {option}
+                                        </MenuItem>
+                                    ))}
+                                </TextField>
+                            </Grid>
+                            <Grid item xs={12} sm={6} md={2}>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Button
+                                        variant="contained"
+                                        color="primary"
+                                        onClick={() => handleVerify(index, type === 'reactant' ? setSubstrates : setProducts, type === 'reactant' ? substrates : products)}
+                                        sx={transitions.button}
+                                    >
+                                        Verify
+                                    </Button>
+                                    <IconButton
+                                        onClick={() => handleRemoveRow(index, type === 'reactant' ? setSubstrates : setProducts)}
+                                        sx={transitions.icon}
+                                    >
+                                        <DeleteIcon />
+                                    </IconButton>
+                                </Box>
+                            </Grid>
+                        </Grid>
+                        
+                        {metabolite.smiles && (
+                            <Fade in={true} timeout={500}>
+                                <Box sx={{ mt: 2 }}>
+                                    <MoleculeViewer smiles={metabolite.smiles} width={300} height={200} />
+                                </Box>
+                            </Fade>
+                        )}
+                    </CardContent>
+                </Card>
+            </Grow>
         );
     };
 
     return (
-        <Container maxWidth="lg" sx={{ py: 4 }}>
-            <Typography variant="h4" component="h1" gutterBottom>
-                Create Metabolic Reaction
-            </Typography>
-            
-            <form onSubmit={handleSubmit}>
-                <Box sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h5" component="h2">
-                            Substrates
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
+        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+            <AppBar position="static" color="primary" elevation={0}>
+                <Toolbar>
+                    <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+                        Create Reaction
+                    </Typography>
+                </Toolbar>
+            </AppBar>
+
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+                <Stepper activeStep={0} sx={{ mb: 4 }}>
+                    <Step>
+                        <StepLabel>Define Metabolites</StepLabel>
+                    </Step>
+                    <Step>
+                        <StepLabel>Balance Reaction</StepLabel>
+                    </Step>
+                    <Step>
+                        <StepLabel>Review & Submit</StepLabel>
+                    </Step>
+                </Stepper>
+
+                <Grid container spacing={4}>
+                    <Grid item xs={12} md={6}>
+                        <Card sx={{ ...transitions.card }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Substrates
+                                </Typography>
+                                <Divider sx={{ mb: 2 }} />
+                                {substrates.map((substrate, index) => renderMetaboliteRow(substrate, index, 'reactant'))}
+                                <Button
+                                    startIcon={<AddIcon />}
                             onClick={() => handleAddRow(setSubstrates)}
-                            sx={{ 
-                                bgcolor: 'primary.main',
-                                '&:hover': {
-                                    bgcolor: 'primary.dark'
-                                }
-                            }}
-                        >
-                            Add Substrate
-                        </Button>
-                    </Box>
-                    {substrates.map((metabolite, index) => 
-                        renderMetaboliteRow(metabolite, index, 'reactant')
-                    )}
-                </Box>
+                                    sx={{ mt: 2, ...transitions.button }}
+                                >
+                                    Add Substrate
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </Grid>
 
-                <Box sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h5" component="h2">
-                            Products
-                        </Typography>
-                        <Button
-                            variant="contained"
-                            startIcon={<AddIcon />}
+                    <Grid item xs={12} md={6}>
+                        <Card sx={{ ...transitions.card }}>
+                            <CardContent>
+                                <Typography variant="h6" gutterBottom>
+                                    Products
+                                </Typography>
+                                <Divider sx={{ mb: 2 }} />
+                                {products.map((product, index) => renderMetaboliteRow(product, index, 'product'))}
+                                <Button
+                                    startIcon={<AddIcon />}
                             onClick={() => handleAddRow(setProducts)}
-                            sx={{ 
-                                bgcolor: 'primary.main',
-                                '&:hover': {
-                                    bgcolor: 'primary.dark'
-                                }
-                            }}
-                        >
-                            Add Product
-                        </Button>
-                    </Box>
-                    {products.map((metabolite, index) => 
-                        renderMetaboliteRow(metabolite, index, 'product')
-                    )}
-                </Box>
+                                    sx={{ mt: 2, ...transitions.button }}
+                                >
+                                    Add Product
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </Grid>
+                </Grid>
 
-                <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
                     <Button
-                        type="submit"
                         variant="contained"
                         color="primary"
-                        size="large"
-                        sx={{ 
-                            flex: 1,
-                            py: 1.5,
-                            bgcolor: 'primary.main',
-                            '&:hover': {
-                                bgcolor: 'primary.dark'
-                            }
-                        }}
+                        onClick={handleBalanceCheck}
+                        sx={transitions.button}
                     >
-                        Create Reaction
+                        Check Balance
                     </Button>
                     <Button
                         variant="contained"
                         color="secondary"
-                        size="large"
-                        onClick={handleBalanceCheck}
-                        sx={{ 
-                            flex: 1,
-                            py: 1.5,
-                            bgcolor: 'secondary.main',
-                            '&:hover': {
-                                bgcolor: 'secondary.dark'
-                            }
-                        }}
+                        onClick={handleSubmit}
+                        sx={transitions.button}
                     >
-                        Check Balance
+                        Submit Reaction
                     </Button>
                 </Box>
 
                 {balanceStatus && (
-                    <Alert 
-                        severity={balanceStatus.balanced ? "success" : "error"} 
-                        sx={{ mt: 2 }}
-                    >
-                        {balanceStatus.message}
-                    </Alert>
+                    <Zoom in={true}>
+                        <Alert 
+                            severity={balanceStatus.balanced ? "success" : "error"} 
+                            sx={{ mt: 2, ...animations.slideIn }}
+                        >
+                            {balanceStatus.message}
+                        </Alert>
+                    </Zoom>
                 )}
 
                 {error && (
-                    <Alert severity="error" sx={{ mt: 4 }}>
-                        {error}
-                    </Alert>
+                    <Zoom in={true}>
+                        <Alert severity="error" sx={{ mt: 2, ...animations.slideIn }}>
+                            {error}
+                        </Alert>
+                    </Zoom>
                 )}
-
-                {response && (
-                    <Alert severity="success" sx={{ mt: 4 }}>
-                        Reaction created successfully!
-                    </Alert>
-                )}
-            </form>
-
-            <ChemicalEditor
-                open={editorOpen}
-                onClose={handleEditorClose}
-                onSave={handleStructureChange}
-                initialMolfile={editingMetabolite?.smiles}
-            />
-        </Container>
+            </Container>
+        </Box>
     );
 };
 
