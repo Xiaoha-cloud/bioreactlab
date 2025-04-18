@@ -1,0 +1,141 @@
+openapi: 3.0.0
+info:
+  title: BioReactLab API
+  version: 1.0.0
+  description: API for managing biochemical reactions
+
+paths:
+  /api/reactions/create/:
+    post:
+      summary: Create a new reaction
+      description: Creates a new biochemical reaction with substrates and products
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - substrates
+                - products
+              properties:
+                substrates:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                      - stoichiometry
+                      - compartment
+                      - type
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the metabolite
+                      stoichiometry:
+                        type: number
+                        description: Stoichiometric coefficient
+                        minimum: 0
+                        exclusiveMinimum: true
+                      compartment:
+                        type: string
+                        description: Cellular compartment
+                        enum: [cytosol, mitochondria, nucleus, extracellular]
+                      type:
+                        type: string
+                        description: Type of molecule
+                        enum: [metabolite, protein, rna, dna]
+                      formula:
+                        type: string
+                        description: Chemical formula (optional)
+                      charge:
+                        type: integer
+                        description: Net charge (optional)
+                      notes:
+                        type: string
+                        description: Additional notes (optional)
+                products:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/Metabolite'
+      responses:
+        '201':
+          description: Reaction created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  substrates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Metabolite'
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Metabolite'
+        '400':
+          description: Invalid input data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '415':
+          description: Unsupported media type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+components:
+  schemas:
+    Metabolite:
+      type: object
+      required:
+        - name
+        - stoichiometry
+        - compartment
+        - type
+      properties:
+        name:
+          type: string
+          description: Name of the metabolite
+        stoichiometry:
+          type: number
+          description: Stoichiometric coefficient
+          minimum: 0
+          exclusiveMinimum: true
+        compartment:
+          type: string
+          description: Cellular compartment
+          enum: [cytosol, mitochondria, nucleus, extracellular]
+        type:
+          type: string
+          description: Type of molecule
+          enum: [metabolite, protein, rna, dna]
+        formula:
+          type: string
+          description: Chemical formula (optional)
+        charge:
+          type: integer
+          description: Net charge (optional)
+        notes:
+          type: string
+          description: Additional notes (optional) 

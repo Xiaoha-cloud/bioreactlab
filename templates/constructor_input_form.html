@@ -1,0 +1,25 @@
+<!-- ...existing code... -->
+<label for="input_type">Input Type:</label>
+<select id="input_type" name="input_type" onchange="toggleInputFields()">
+    <option value="structure">Structure File</option>
+    <option value="chemical_formula">Chemical Formula</option>
+</select>
+
+<div id="structure_input">
+    <label for="structure_file">Structure File:</label>
+    <input type="file" id="structure_file" name="structure_file">
+</div>
+
+<div id="formula_input" style="display: none;">
+    <label for="chemical_formula">Chemical Formula:</label>
+    <input type="text" id="chemical_formula" name="chemical_formula" placeholder="e.g., C6H12O6">
+</div>
+
+<script>
+    function toggleInputFields() {
+        const inputType = document.getElementById('input_type').value;
+        document.getElementById('structure_input').style.display = inputType === 'structure' ? 'block' : 'none';
+        document.getElementById('formula_input').style.display = inputType === 'chemical_formula' ? 'block' : 'none';
+    }
+</script>
+<!-- ...existing code... -->

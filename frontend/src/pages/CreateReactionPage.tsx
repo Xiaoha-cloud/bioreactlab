@@ -1,5 +1,25 @@
-import React, { useState } from 'react';
-import axios, { AxiosError } from 'axios';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
+import { AxiosError } from 'axios';
+import api from '../services/api';
+import { FormulaAutocomplete } from '../components/FormulaAutocomplete';
+import { FormulaBuilder } from '../components/FormulaBuilder';
+import { Button, TextField, MenuItem, Alert, Paper, Box, IconButton, Container, Typography, Chip, Dialog, DialogTitle, DialogContent, Grid } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import { MoleculeViewer } from '../components/MoleculeViewer';
+import OCL from 'openchemlib/full';
+import ChemicalEditor from '../components/ChemicalEditor';
+import { Edit as EditIcon } from '@mui/icons-material';
+import { StandaloneStructServiceProvider } from '../services/StandaloneStructServiceProvider';
+
+interface Formula {
+    name: string;
+    formula: string;
+    source: string;
+    noStructure: boolean;
+    warnings?: string[];
+}
 
 interface Metabolite {
     name: string;
@@ -7,32 +27,222 @@ interface Metabolite {
     compartment: string;
     type: string;
     verified: boolean;
+    formula?: string;
+    formulaSource?: 'cache' | 'api' | 'user' | 'calculated';
+    smiles?: string;
+    noStructure?: boolean;
+    warnings?: string[];
+    id: string;
+    coefficient: string;
+    warning?: string;
 }
 
-type SetStateFunction = React.Dispatch<React.SetStateAction<Metabolite[]>>;
+interface SetStateFunction extends React.Dispatch<React.SetStateAction<Metabolite[]>> {}
 
-const CreateReactionPage = () => {
-    const [skipAtomMapping, setSkipAtomMapping] = useState(false);
-    const [substrates, setSubstrates] = useState<Metabolite[]>([{ name: '', stoichiometry: '1', compartment: 'C', type: 'VMH', verified: false }]);
-    const [products, setProducts] = useState<Metabolite[]>([{ name: '', stoichiometry: '1', compartment: 'C', type: 'VMH', verified: false }]);
+interface FormulaError {
+    [key: string]: string;
+}
+
+interface ErrorResponse {
+    formula_errors?: FormulaError;
+    [key: string]: any;
+}
+
+const CreateReactionPage: React.FC<{}> = () => {
+    const [skipAtomMapping] = useState(false);
+    const [substrates, setSubstrates] = useState<Metabolite[]>([{ 
+        name: '', 
+        stoichiometry: '1', 
+        compartment: 'C', 
+        type: 'VMH', 
+        verified: false,
+        formula: '',
+        formulaSource: 'user',
+        noStructure: false,
+        warnings: [],
+        id: '',
+        coefficient: '1'
+    }]);
+    const [products, setProducts] = useState<Metabolite[]>([{ 
+        name: '', 
+        stoichiometry: '1', 
+        compartment: 'C', 
+        type: 'VMH', 
+        verified: false,
+        formula: '',
+        formulaSource: 'user',
+        noStructure: false,
+        warnings: [],
+        id: '',
+        coefficient: '1'
+    }]);
     const [response, setResponse] = useState<any>(null);
+    const [balanceStatus, setBalanceStatus] = useState<{ balanced: boolean; message: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [editingMetabolite, setEditingMetabolite] = useState<Metabolite | null>(null);
+    const [editorOpen, setEditorOpen] = useState(false);
 
     const compartments = ['C', 'M', 'Other'];
     const types = ['VMH', 'Custom'];
 
     const handleAddRow = (setState: SetStateFunction) => {
-        setState((prev: Metabolite[]) => [...prev, { name: '', stoichiometry: '1', compartment: 'C', type: 'VMH', verified: false }]);
+        setState((prev: Metabolite[]) => [...prev, { 
+            name: '', 
+            stoichiometry: '1', 
+            compartment: 'C', 
+            type: 'VMH', 
+            verified: false, 
+            formula: '', 
+            formulaSource: 'user',
+            noStructure: false,
+            warnings: [],
+            id: '',
+            coefficient: '1'
+        }]);
     };
 
     const handleRemoveRow = (index: number, setState: SetStateFunction) => {
         setState((prev: Metabolite[]) => prev.filter((_, i: number) => i !== index));
     };
 
-    const handleVerify = (index: number, setState: SetStateFunction) => {
-        setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-            i === index ? { ...item, verified: true } : item
-        ));
+    const handleVerify = async (index: number, setState: SetStateFunction, metabolites: Metabolite[]) => {
+        const metabolite = metabolites[index];
+        console.log('Verifying metabolite:', metabolite);
+        
+        try {
+            // Try structure API first
+            console.log('Calling structure API...');
+            const structureResponse = await api.post('/api/metabolite/validate/', {
+                name: metabolite.name,
+                type: metabolite.type
+            });
+            console.log('Structure API response:', structureResponse.data);
+            
+            if (structureResponse.data.verified) {
+                if (structureResponse.data.structure) {
+                    console.log('Structure found, calculating formula...');
+                    // Structure found - calculate formula from SMILES
+                    const mol = OCL.Molecule.fromSmiles(structureResponse.data.structure);
+                    const formula = mol.getMolecularFormula().formula;
+                    console.log('Calculated formula:', formula);
+                    
+                    setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                        i === index ? { 
+                            ...item, 
+                            verified: true,
+                            smiles: structureResponse.data.structure,
+                            formula: formula,
+                            formulaSource: 'calculated',
+                            noStructure: false,
+                            warnings: [],
+                            warning: '',
+                            coefficient: '1'
+                        } : item
+                    ));
+                } else if (structureResponse.data.formula) {
+                    console.log('No structure but formula found:', structureResponse.data.formula);
+                    // Try to generate structure from formula
+                    try {
+                        const generateResponse = await api.post('/api/formula/generate-structure/', {
+                            formula: structureResponse.data.formula
+                        });
+                        
+                        if (generateResponse.data.smiles) {
+                            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                                i === index ? { 
+                                    ...item, 
+                                    verified: true,
+                                    formula: structureResponse.data.formula,
+                                    smiles: generateResponse.data.smiles,
+                                    molfile: generateResponse.data.molfile,
+                                    formulaSource: 'api',
+                                    noStructure: false,
+                                    warnings: ['Structure generated from formula.'],
+                                    warning: 'Structure generated from formula.',
+                                    coefficient: '1'
+                                } : item
+                            ));
+                        } else {
+                            // Formula found but couldn't generate structure
+                            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                                i === index ? { 
+                                    ...item, 
+                                    verified: true,
+                                    formula: structureResponse.data.formula,
+                                    formulaSource: 'api',
+                                    noStructure: true,
+                                    warnings: ['No structure found. Formula used instead.'],
+                                    warning: 'No structure found. Formula used instead.',
+                                    coefficient: '1'
+                                } : item
+                            ));
+                        }
+                    } catch (error) {
+                        console.error('Error generating structure from formula:', error);
+                        setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                            i === index ? { 
+                                ...item, 
+                                verified: true,
+                                formula: structureResponse.data.formula,
+                                formulaSource: 'api',
+                                noStructure: true,
+                                warnings: ['Could not generate structure from formula.'],
+                                warning: 'Could not generate structure from formula.',
+                                coefficient: '1'
+                            } : item
+                        ));
+                    }
+                }
+                return;
+            }
+
+            // If no structure or formula from validate endpoint, try formula API
+            console.log('No structure found, trying formula API...');
+            const formulaResponse = await api.get(`/api/formula/search?name=${encodeURIComponent(metabolite.name)}`);
+            console.log('Formula API response:', formulaResponse.data);
+            
+            if (formulaResponse.data.results && formulaResponse.data.results.length > 0) {
+                console.log('Formula found from search API');
+                // Formula found
+                setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                    i === index ? { 
+                        ...item, 
+                        verified: true,
+                        formula: formulaResponse.data.results[0].formula,
+                        formulaSource: 'api',
+                        noStructure: true,
+                        warnings: ['No structure found. Formula used instead.'],
+                        warning: 'No structure found. Formula used instead.',
+                        coefficient: '1'
+                    } : item
+                ));
+                return;
+            }
+
+            console.log('No formula found, setting not found state');
+            // No structure or formula found
+            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                i === index ? { 
+                    ...item, 
+                    verified: false,
+                    noStructure: true,
+                    warnings: ['Not found. Please enter manually.'],
+                    warning: 'Not found. Please enter manually.',
+                    coefficient: '1'
+                } : item
+            ));
+        } catch (error) {
+            console.error('Error validating metabolite:', error);
+            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                i === index ? { 
+                    ...item, 
+                    verified: false,
+                    warnings: ['Error verifying metabolite. Please try again.'],
+                    warning: 'Error verifying metabolite. Please try again.',
+                    coefficient: '1'
+                } : item
+            ));
+        }
     };
 
     const handleInputChange = (index: number, field: keyof Metabolite, value: string, setState: SetStateFunction) => {
@@ -47,159 +257,391 @@ const CreateReactionPage = () => {
         setResponse(null);
 
         try {
-            const response = await axios.post('/api/reactions/create/', {
-                substrates: substrates.map(({ name, stoichiometry, compartment, type }) => ({
+            // 验证所有代谢物是否都有化学式（如果存在）
+            const allMetabolites = [...substrates, ...products];
+            const invalidMetabolites = allMetabolites.filter(m => 
+                m.formula && !m.verified
+            );
+
+            if (invalidMetabolites.length > 0) {
+                setError(`Invalid chemical formulas found: ${invalidMetabolites.map(m => m.name).join(', ')}`);
+                return;
+            }
+
+            // 准备提交数据
+            const submitData = {
+                substrates: substrates.map(({ name, stoichiometry, compartment, type, formula }) => ({
                     name,
                     stoichiometry: parseFloat(stoichiometry),
                     compartment,
-                    type
+                    type,
+                    ...(formula && { formula }) // 只在存在化学式时包含该字段
                 })),
-                products: products.map(({ name, stoichiometry, compartment, type }) => ({
+                products: products.map(({ name, stoichiometry, compartment, type, formula }) => ({
                     name,
                     stoichiometry: parseFloat(stoichiometry),
                     compartment,
-                    type
+                    type,
+                    ...(formula && { formula }) // 只在存在化学式时包含该字段
                 })),
                 direction: '->',
                 skipAtomMapping,
                 subsystem: 'Default',
                 organ: 'Default'
-            });
+            };
 
+            const response = await api.post('/api/reactions/create/', submitData);
             setResponse(response.data);
         } catch (err) {
-            const error = err as AxiosError;
-            setError(error.response?.data?.toString() || 'An error occurred');
+            const error = err as AxiosError<ErrorResponse>;
+            if (error.response?.data?.formula_errors) {
+                // 处理化学式相关的错误
+                const formulaErrors = error.response.data.formula_errors;
+                setError(`Chemical formula validation failed: ${Object.entries(formulaErrors)
+                    .map(([name, error]) => `${name}: ${error}`)
+                    .join(', ')}`);
+            } else {
+                setError(error.response?.data?.toString() || 'An error occurred');
+            }
         }
     };
 
-    const renderMetaboliteRow = (metabolite: Metabolite, index: number, setState: SetStateFunction) => (
-        <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4 p-4 bg-gray-50 rounded-lg transition-all duration-200 hover:bg-gray-100">
-            <input
-                type="text"
-                value={metabolite.name}
-                onChange={(e) => handleInputChange(index, 'name', e.target.value, setState)}
-                placeholder="Name"
-                className="w-full sm:w-auto sm:flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            />
-            <input
-                type="number"
-                value={metabolite.stoichiometry}
-                onChange={(e) => handleInputChange(index, 'stoichiometry', e.target.value, setState)}
-                min="0"
-                step="0.1"
-                className="w-full sm:w-24 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            />
-            <select
-                value={metabolite.compartment}
-                onChange={(e) => handleInputChange(index, 'compartment', e.target.value, setState)}
-                className="w-full sm:w-24 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            >
-                {compartments.map(comp => (
-                    <option key={comp} value={comp}>{comp}</option>
-                ))}
-            </select>
-            <select
-                value={metabolite.type}
-                onChange={(e) => handleInputChange(index, 'type', e.target.value, setState)}
-                className="w-full sm:w-24 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-            >
-                {types.map(type => (
-                    <option key={type} value={type}>{type}</option>
-                ))}
-            </select>
-            <div className="flex gap-2 w-full sm:w-auto">
-                <button
-                    type="button"
-                    onClick={() => handleVerify(index, setState)}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:brightness-110 font-medium transition-all duration-200"
-                >
-                    Verify
-                </button>
-                {metabolite.verified && (
-                    <span className="text-green-500 text-xl flex items-center">✓</span>
+    const handleBalanceCheck = async () => {
+        try {
+            // Prepare data for balance check
+            const balanceData = {
+                reactants: substrates
+                    .filter(m => m.verified && (m.formula || m.smiles))
+                    .map(m => ({
+                        coefficient: parseFloat(m.stoichiometry),
+                        formula: m.formula,
+                        smiles: m.smiles
+                    })),
+                products: products
+                    .filter(m => m.verified && (m.formula || m.smiles))
+                    .map(m => ({
+                        coefficient: parseFloat(m.stoichiometry),
+                        formula: m.formula,
+                        smiles: m.smiles
+                    }))
+            };
+
+            const response = await api.post('/api/reaction/check-balance/', balanceData);
+            
+            if (response.data.balanced) {
+                setBalanceStatus({
+                    balanced: true,
+                    message: '✅ Reaction is balanced'
+                });
+            } else {
+                setBalanceStatus({
+                    balanced: false,
+                    message: '❌ Reaction is not balanced'
+                });
+            }
+        } catch (error) {
+            console.error('Error checking balance:', error);
+            setBalanceStatus({
+                balanced: false,
+                message: '❌ Error checking balance. Please try again.'
+            });
+        }
+    };
+
+    const handleEditorOpen = (metabolite: Metabolite) => {
+        setEditingMetabolite(metabolite);
+        setEditorOpen(true);
+    };
+
+    const handleEditorClose = () => {
+        setEditorOpen(false);
+        setEditingMetabolite(null);
+    };
+
+    const handleStructureChange = async (molfile: string) => {
+        if (!editingMetabolite) return;
+
+        try {
+            const structService = new StandaloneStructServiceProvider();
+            const smiles = await structService.convert(molfile, 'smiles');
+            
+            if (typeof smiles === 'string') {
+                const updatedMetabolite = {
+                    ...editingMetabolite,
+                    smiles,
+                    verified: true,
+                    warning: ''
+                };
+
+                if (editingMetabolite.type === 'reactant') {
+                    setSubstrates(substrates.map(r => 
+                        r.id === editingMetabolite.id ? updatedMetabolite : r
+                    ));
+                } else {
+                    setProducts(products.map(p => 
+                        p.id === editingMetabolite.id ? updatedMetabolite : p
+                    ));
+                }
+            }
+        } catch (error) {
+            console.error('Error converting structure:', error);
+        }
+    };
+
+    const renderMetaboliteRow = (metabolite: Metabolite, index: number, type: 'reactant' | 'product') => {
+        return (
+            <Box key={metabolite.id} sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TextField
+                        label="Coefficient"
+                        type="number"
+                        value={metabolite.coefficient}
+                        onChange={(e) => handleInputChange(index, 'coefficient', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                        sx={{ width: '100px' }}
+                    />
+                    <TextField
+                        label="Name"
+                        value={metabolite.name}
+                        onChange={(e) => handleInputChange(index, 'name', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
+                        sx={{ width: '200px' }}
+                    />
+                    <Button
+                        variant="contained"
+                        color="primary"
+                        onClick={() => handleVerify(index, type === 'reactant' ? setSubstrates : setProducts, type === 'reactant' ? substrates : products)}
+                        sx={{ minWidth: '100px' }}
+                    >
+                        Verify
+                    </Button>
+                        <FormulaAutocomplete
+                        initialValue={metabolite.formula || ''}
+                        value={metabolite.formula || ''}
+                        onChange={(newValue) => {
+                            handleInputChange(index, 'formula', newValue, type === 'reactant' ? setSubstrates : setProducts);
+                        }}
+                        apiEndpoint="/api/formula/search"
+                        onFormulaSelect={(formula) => {
+                            const updatedMetabolite: Metabolite = {
+                                ...metabolite,
+                                name: formula.name,
+                                formula: formula.formula,
+                                smiles: formula.smiles,
+                                verified: true,
+                                formulaSource: (formula.source === 'formula' ? 'calculated' : 'api') as 'calculated' | 'api',
+                                noStructure: formula.noStructure ?? false,
+                                warnings: formula.warnings ?? [],
+                                warning: formula.warnings?.join(', ') || '',
+                                stoichiometry: metabolite.stoichiometry,
+                                compartment: metabolite.compartment,
+                                type: metabolite.type,
+                                id: metabolite.id,
+                                coefficient: metabolite.coefficient
+                            };
+                            if (type === 'reactant') {
+                                setSubstrates(substrates.map(r => 
+                                    r.id === metabolite.id ? updatedMetabolite : r
+                                ));
+                            } else {
+                                setProducts(products.map(p => 
+                                    p.id === metabolite.id ? updatedMetabolite : p
+                                ));
+                            }
+                        }}
+                        onVerify={async (formula) => {
+                            try {
+                                const response = await api.post('/api/metabolite/validate/', {
+                                    name: formula.name,
+                                    type: metabolite.type
+                                });
+                                
+                                if (response.data.verified) {
+                                    const updatedMetabolite: Metabolite = {
+                                        ...metabolite,
+                                        name: formula.name,
+                                        formula: formula.formula,
+                                        smiles: response.data.structure,
+                                        verified: true,
+                                        formulaSource: 'api' as const,
+                                        noStructure: !response.data.structure,
+                                        warnings: response.data.structure ? [] : ['No structure found. Formula used instead.'],
+                                        warning: response.data.structure ? '' : 'No structure found. Formula used instead.',
+                                        stoichiometry: metabolite.stoichiometry,
+                                        compartment: metabolite.compartment,
+                                        type: metabolite.type,
+                                        id: metabolite.id,
+                                        coefficient: metabolite.coefficient
+                                    };
+                                    
+                                    if (type === 'reactant') {
+                                        setSubstrates(substrates.map(r => 
+                                            r.id === metabolite.id ? updatedMetabolite : r
+                                        ));
+                                    } else {
+                                        setProducts(products.map(p => 
+                                            p.id === metabolite.id ? updatedMetabolite : p
+                                        ));
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error verifying metabolite:', error);
+                            }
+                        }}
+                        showWarnings={true}
+                        autoComplete={false}
+                        sx={{ width: '300px' }}
+                    />
+                    <IconButton 
+                        onClick={() => handleEditorOpen(metabolite)}
+                        color="primary"
+                        title="Edit structure"
+                    >
+                        <EditIcon />
+                    </IconButton>
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        onClick={() => handleRemoveRow(index, type === 'reactant' ? setSubstrates : setProducts)}
+                    >
+                        Remove
+                    </Button>
+                </Box>
+                {metabolite.warning && (
+                    <Typography color="warning.main" sx={{ mt: 1 }}>
+                        {metabolite.warning}
+                    </Typography>
                 )}
-                <button
-                    type="button"
-                    onClick={() => handleRemoveRow(index, setState)}
-                    className="flex-1 sm:flex-none px-4 py-2 bg-gradient-to-r from-red-500 to-pink-500 text-white rounded-xl hover:brightness-110 font-medium transition-all duration-200"
-                >
-                    X
-                </button>
-            </div>
-        </div>
-    );
+                {metabolite.smiles && (
+                    <Box sx={{ mt: 2 }}>
+                        <MoleculeViewer
+                            smiles={metabolite.smiles}
+                            width={300}
+                            height={200}
+                        />
+                    </Box>
+                )}
+            </Box>
+        );
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 px-4 py-10">
-            <div className="w-full sm:max-w-xl md:max-w-2xl lg:max-w-3xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-800 mb-8">Create Metabolic Reaction</h1>
-                
-                <div className="mb-8">
-                    <label className="flex items-center space-x-2">
-                        <input
-                            type="checkbox"
-                            checked={skipAtomMapping}
-                            onChange={(e) => setSkipAtomMapping(e.target.checked)}
-                            className="form-checkbox h-5 w-5 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-2"
-                        />
-                        <span className="text-gray-700 font-medium">Skip Atom Mapping (faster)</span>
-                    </label>
-                </div>
-
-                <form onSubmit={handleSubmit} className="space-y-8">
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-6">Substrates</h2>
-                        {substrates.map((substrate, index) => 
-                            renderMetaboliteRow(substrate, index, setSubstrates)
-                        )}
-                        <button
-                            type="button"
+        <Container maxWidth="lg" sx={{ py: 4 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+                Create Metabolic Reaction
+            </Typography>
+            
+            <form onSubmit={handleSubmit}>
+                <Box sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h5" component="h2">
+                            Substrates
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
                             onClick={() => handleAddRow(setSubstrates)}
-                            className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:brightness-110 font-medium transition-all duration-200"
+                            sx={{ 
+                                bgcolor: 'primary.main',
+                                '&:hover': {
+                                    bgcolor: 'primary.dark'
+                                }
+                            }}
                         >
-                            + Add Substrate
-                        </button>
-                    </div>
+                            Add Substrate
+                        </Button>
+                    </Box>
+                    {substrates.map((metabolite, index) => 
+                        renderMetaboliteRow(metabolite, index, 'reactant')
+                    )}
+                </Box>
 
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <h2 className="text-xl font-semibold text-gray-800 mb-6">Products</h2>
-                        {products.map((product, index) => 
-                            renderMetaboliteRow(product, index, setProducts)
-                        )}
-                        <button
-                            type="button"
+                <Box sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="h5" component="h2">
+                            Products
+                        </Typography>
+                        <Button
+                            variant="contained"
+                            startIcon={<AddIcon />}
                             onClick={() => handleAddRow(setProducts)}
-                            className="mt-4 px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:brightness-110 font-medium transition-all duration-200"
+                            sx={{ 
+                                bgcolor: 'primary.main',
+                                '&:hover': {
+                                    bgcolor: 'primary.dark'
+                                }
+                            }}
                         >
-                            + Add Product
-                        </button>
-                    </div>
+                            Add Product
+                        </Button>
+                    </Box>
+                    {products.map((metabolite, index) => 
+                        renderMetaboliteRow(metabolite, index, 'product')
+                    )}
+                </Box>
 
-                    <button
+                <Box sx={{ display: 'flex', gap: 2, mt: 4 }}>
+                    <Button
                         type="submit"
-                        className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:brightness-110 font-medium text-lg transition-all duration-200"
+                        variant="contained"
+                        color="primary"
+                        size="large"
+                        sx={{ 
+                            flex: 1,
+                            py: 1.5,
+                            bgcolor: 'primary.main',
+                            '&:hover': {
+                                bgcolor: 'primary.dark'
+                            }
+                        }}
                     >
                         Create Reaction
-                    </button>
-                </form>
+                    </Button>
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        size="large"
+                        onClick={handleBalanceCheck}
+                        sx={{ 
+                            flex: 1,
+                            py: 1.5,
+                            bgcolor: 'secondary.main',
+                            '&:hover': {
+                                bgcolor: 'secondary.dark'
+                            }
+                        }}
+                    >
+                        Check Balance
+                    </Button>
+                </Box>
+
+                {balanceStatus && (
+                    <Alert 
+                        severity={balanceStatus.balanced ? "success" : "error"} 
+                        sx={{ mt: 2 }}
+                    >
+                        {balanceStatus.message}
+                    </Alert>
+                )}
 
                 {error && (
-                    <div className="mt-8 p-4 bg-red-100 text-red-700 rounded-xl border border-red-200">
-                        {JSON.stringify(error)}
-                    </div>
+                    <Alert severity="error" sx={{ mt: 4 }}>
+                        {error}
+                    </Alert>
                 )}
 
                 {response && (
-                    <div className="mt-8 p-6 bg-white rounded-xl shadow-md border border-gray-200">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Response:</h3>
-                        <pre className="whitespace-pre-wrap text-gray-700">
-                            {JSON.stringify(response, null, 2)}
-                        </pre>
-                    </div>
+                    <Alert severity="success" sx={{ mt: 4 }}>
+                        Reaction created successfully!
+                    </Alert>
                 )}
-            </div>
-        </div>
+            </form>
+
+            <ChemicalEditor
+                open={editorOpen}
+                onClose={handleEditorClose}
+                onSave={handleStructureChange}
+                initialMolfile={editingMetabolite?.smiles}
+            />
+        </Container>
     );
 };
 
