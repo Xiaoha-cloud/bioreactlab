@@ -1,71 +1,159 @@
-import React from 'react';
-import { Box, Paper, Typography } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Paper, Typography, CircularProgress, Tooltip, Fade, Grow, Chip } from '@mui/material';
+import { animations, transitions } from '../styles/animations';
 // @ts-ignore
 import OCL from 'openchemlib/full';
 
+// Props interface for MoleculeViewer component
 interface MoleculeViewerProps {
     smiles?: string;
     width?: number;
     height?: number;
     title?: string;
+    showStatus?: boolean;
 }
 
 export const MoleculeViewer: React.FC<MoleculeViewerProps> = ({
     smiles,
     width = 200,
     height = 150,
-    title
+    title,
+    showStatus = true
 }) => {
-    const renderStructure = () => {
+    // State management
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [svgContent, setSvgContent] = useState<string>('');
+    const [status, setStatus] = useState<string>('');
+
+    // Render molecule when SMILES changes
+    useEffect(() => {
         if (!smiles) {
-            return { __html: '<div>No SMILES provided</div>' };
+            setLoading(false);
+            return;
         }
+
+        setLoading(true);
+        setError(null);
+        setStatus('Rendering molecule...');
 
         try {
             const mol = OCL.Molecule.fromSmiles(smiles);
-            mol.addImplicitHydrogens(); // 添加隐式氢原子
+            mol.addImplicitHydrogens();
             const svg = mol.toSVG(width, height, 'white');
-            return { __html: svg };
+            setSvgContent(svg);
+            setStatus('Molecule rendered successfully');
         } catch (error) {
             console.error('Error rendering molecule:', error);
-            return { __html: '<div>⚠️ Failed to render molecule</div>' };
+            setError('Failed to render molecule');
+            setStatus('Rendering failed');
+        } finally {
+            setLoading(false);
         }
-    };
+    }, [smiles, width, height]);
 
     if (!smiles) {
         return null;
     }
 
     return (
-        <Paper 
-            elevation={1} 
-            sx={{ 
-                p: 2, 
-                display: 'flex', 
-                flexDirection: 'column', 
-                alignItems: 'center',
-                gap: 1
-            }}
-        >
-            {title && (
-                <Typography variant="subtitle2" color="text.secondary">
-                    {title}
-                </Typography>
-            )}
-            <Box
-                sx={{
-                    width,
-                    height,
-                    border: '1px solid #e0e0e0',
-                    borderRadius: 1,
-                    overflow: 'hidden',
-                    display: 'flex',
+        <Grow in={true} timeout={500}>
+            <Paper 
+                elevation={1} 
+                sx={{ 
+                    p: 2, 
+                    display: 'flex', 
+                    flexDirection: 'column', 
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: 'white'
+                    gap: 1,
+                    ...transitions.card
                 }}
-                dangerouslySetInnerHTML={renderStructure()}
-            />
-        </Paper>
+            >
+                {title && (
+                    <Typography 
+                        variant="subtitle2" 
+                        color="text.secondary"
+                        sx={transitions.container}
+                    >
+                        {title}
+                    </Typography>
+                )}
+                <Box
+                    sx={{
+                        position: 'relative',
+                        width,
+                        height,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1,
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'white',
+                        ...transitions.container
+                    }}
+                >
+                    {loading && (
+                        <Fade in={true}>
+                            <Box sx={{
+                                position: 'absolute',
+                                top: '50%',
+                                left: '50%',
+                                transform: 'translate(-50%, -50%)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 1
+                            }}>
+                                <CircularProgress 
+                                    size={24} 
+                                    sx={{ 
+                                        ...animations.spin,
+                                        color: 'primary.main'
+                                    }} 
+                                />
+                                <Typography 
+                                    variant="caption" 
+                                    color="text.secondary"
+                                >
+                                    Rendering...
+                                </Typography>
+                            </Box>
+                        </Fade>
+                    )}
+                    {error ? (
+                        <Tooltip title={error} arrow>
+                            <Box sx={{ 
+                                p: 2, 
+                                textAlign: 'center',
+                                color: 'error.main'
+                            }}>
+                                <Typography variant="body2">
+                                    ⚠️ Failed to render molecule
+                                </Typography>
+                            </Box>
+                        </Tooltip>
+                    ) : (
+                        <Box
+                            component="div"
+                            dangerouslySetInnerHTML={{ __html: svgContent }}
+                            sx={{
+                                opacity: loading ? 0.5 : 1,
+                                transition: 'opacity 0.3s ease-in-out'
+                            }}
+                        />
+                    )}
+                </Box>
+                {showStatus && status && (
+                    <Chip
+                        label={status}
+                        size="small"
+                        color={error ? 'error' : 'success'}
+                        sx={transitions.chip}
+                    />
+                )}
+            </Paper>
+        </Grow>
     );
 }; 

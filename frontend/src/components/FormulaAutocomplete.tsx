@@ -1,10 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Autocomplete, TextField, Chip, AutocompleteRenderInputParams, AutocompleteRenderOptionState, Button, Box, Dialog, Alert } from '@mui/material';
+import { 
+    Autocomplete, 
+    TextField, 
+    Chip, 
+    AutocompleteRenderInputParams, 
+    AutocompleteRenderOptionState, 
+    Button, 
+    Box, 
+    Dialog, 
+    Alert,
+    CircularProgress,
+    Typography,
+    Paper,
+    Fade,
+    Grow,
+    Zoom,
+    Snackbar
+} from '@mui/material';
 import { SxProps, Theme } from '@mui/material/styles';
 import { useDebounce } from '../hooks/useDebounce';
 import { FormulaBuilder } from './FormulaBuilder';
 import api from '../services/api';
+import { animations, transitions } from '../styles/animations';
 
+// Interface for formula data structure
 export interface Formula {
     name: string;
     formula: string;
@@ -15,6 +34,7 @@ export interface Formula {
     warnings?: string[];
 }
 
+// Props interface for FormulaAutocomplete component
 interface FormulaAutocompleteProps {
     onFormulaSelect: (formula: Formula) => void;
     apiEndpoint: string;
@@ -38,10 +58,13 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
     showWarnings = true,
     sx
 }) => {
+    // State management
     const [inputValue, setInputValue] = useState(initialValue);
     const [options, setOptions] = useState<Formula[]>([]);
     const [loading, setLoading] = useState(false);
     const [showBuilder, setShowBuilder] = useState(false);
+    const [success, setSuccess] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const [verificationStatus, setVerificationStatus] = useState<{
         loading: boolean;
         error: string | null;
@@ -54,12 +77,14 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
         noStructure: false
     });
 
+    // Update input value when value prop changes
     useEffect(() => {
         if (value !== undefined) {
             setInputValue(value);
         }
     }, [value]);
 
+    // Debounced search function
     const debouncedSearch = useDebounce(async (searchTerm: string) => {
         if (!searchTerm) {
             setOptions([]);
@@ -76,17 +101,20 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
                     formulaOnly: item.source === 'formula' || !item.source
                 }));
                 setOptions(processedResults);
+                setSuccess('Search completed successfully');
             } else {
                 throw new Error('Invalid response format: expected JSON');
             }
         } catch (error) {
             console.error('Error fetching formulas:', error);
+            setError('Failed to fetch formulas');
             setOptions([]);
         } finally {
             setLoading(false);
         }
     }, 300);
 
+    // Formula verification handler
     const handleVerify = async (formula: Formula) => {
         setVerificationStatus(prev => ({ ...prev, loading: true, error: null, warnings: [] }));
         
@@ -113,6 +141,7 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
                     };
                     onFormulaSelect(updatedFormula);
                     setVerificationStatus(prev => ({ ...prev, loading: false }));
+                    setSuccess('Formula verified successfully');
                     return;
                 }
             } else {
@@ -141,6 +170,7 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
                     };
                     onFormulaSelect(updatedFormula);
                     setVerificationStatus(prev => ({ ...prev, loading: false }));
+                    setSuccess('Structure verified successfully');
                 } else {
                     throw new Error('No structure or formula found');
                 }
@@ -149,6 +179,7 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
             }
         } catch (error) {
             console.error('Error verifying formula:', error);
+            setError('Failed to verify formula');
             setVerificationStatus(prev => ({
                 ...prev,
                 loading: false,
@@ -158,12 +189,14 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
         }
     };
 
+    // Trigger search when input changes
     useEffect(() => {
         if (autoComplete && inputValue) {
             debouncedSearch(inputValue);
         }
     }, [inputValue, autoComplete, debouncedSearch]);
 
+    // Handle formula builder confirmation
     const handleBuilderConfirm = (formula: string) => {
         const newFormula = {
             name: formula,
@@ -174,11 +207,104 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
         };
         onFormulaSelect(newFormula);
         setShowBuilder(false);
+        setSuccess('Formula built successfully');
     };
+
+    // Render option in dropdown
+    const renderOption = (props: React.HTMLAttributes<HTMLLIElement>, option: Formula, state: AutocompleteRenderOptionState) => (
+        <Grow in={true} timeout={300}>
+            <li {...props}>
+                <Box sx={{ 
+                    p: 1,
+                    width: '100%',
+                    '&:hover': {
+                        bgcolor: 'action.hover'
+                    }
+                }}>
+                    <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                        {option.name}
+                    </Typography>
+                    <Box sx={{ 
+                        display: 'flex', 
+                        gap: 1, 
+                        alignItems: 'center',
+                        mt: 0.5
+                    }}>
+                        <Typography variant="body2" color="text.secondary">
+                            {option.formula}
+                        </Typography>
+                        {option.formulaOnly && (
+                            <Chip
+                                label="No structure"
+                                size="small"
+                                color="warning"
+                                sx={{ 
+                                    bgcolor: 'warning.light',
+                                    color: 'warning.dark',
+                                    ...transitions.chip
+                                }}
+                            />
+                        )}
+                        {!option.formulaOnly && (
+                            <Chip
+                                label={option.source}
+                                size="small"
+                                color={option.source === 'cache' ? 'primary' : 'secondary'}
+                                sx={transitions.chip}
+                            />
+                        )}
+                    </Box>
+                </Box>
+            </li>
+        </Grow>
+    );
+
+    // Render input field
+    const renderInput = (params: AutocompleteRenderInputParams) => (
+        <TextField
+            {...params}
+            label="Chemical Formula"
+            variant="outlined"
+            fullWidth
+            error={!!verificationStatus.error}
+            helperText={verificationStatus.error}
+            InputProps={{
+                ...params.InputProps,
+                endAdornment: (
+                    <>
+                        {loading && (
+                            <CircularProgress 
+                                color="inherit" 
+                                size={20} 
+                                sx={{ 
+                                    mr: 1,
+                                    ...animations.spin
+                                }} 
+                            />
+                        )}
+                        {params.InputProps.endAdornment}
+                    </>
+                ),
+            }}
+            sx={{
+                ...transitions.input,
+                '& .MuiOutlinedInput-root': {
+                    '&:hover fieldset': {
+                        borderColor: 'primary.main',
+                    },
+                },
+            }}
+        />
+    );
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            <Box sx={{ 
+                display: 'flex', 
+                gap: 1, 
+                alignItems: 'center',
+                ...transitions.container
+            }}>
                 <Autocomplete<Formula, false, true, true>
                     freeSolo
                     options={options}
@@ -199,66 +325,68 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
                             }
                         }
                     }}
-                    sx={{ width: '300px', ...sx }}
-                    renderInput={(params: AutocompleteRenderInputParams) => (
-                        <TextField
-                            {...params}
-                            label="Chemical Formula"
-                            variant="outlined"
-                            fullWidth
-                            error={!!verificationStatus.error}
-                            helperText={verificationStatus.error}
-                        />
-                    )}
-                    renderOption={(props: React.HTMLAttributes<HTMLLIElement>, option: Formula) => (
-                        <li {...props}>
-                            <div className="flex flex-col">
-                                <span>{option.name}</span>
-                                <div className="flex gap-2 items-center">
-                                    <span className="text-sm text-gray-500">{option.formula}</span>
-                                    {option.formulaOnly && (
-                                        <Chip
-                                            label="No structure available"
-                                            color="warning"
-                                            size="small"
-                                            className="bg-amber-100 text-amber-800"
-                                        />
-                                    )}
-                                    {!option.formulaOnly && (
-                                        <Chip
-                                            label={option.source}
-                                            size="small"
-                                            color={option.source === 'cache' ? 'primary' : 'secondary'}
-                                        />
-                                    )}
-                                </div>
-                            </div>
-                        </li>
-                    )}
+                    sx={{ 
+                        width: '300px', 
+                        ...sx,
+                        '& .MuiAutocomplete-paper': {
+                            ...transitions.paper
+                        }
+                    }}
+                    renderInput={renderInput}
+                    renderOption={renderOption}
                     loading={loading || verificationStatus.loading}
+                    PaperComponent={({ children }) => (
+                        <Paper 
+                            elevation={3}
+                            sx={{ 
+                                ...transitions.paper,
+                                '& .MuiAutocomplete-option': {
+                                    py: 1
+                                }
+                            }}
+                        >
+                            {children}
+                        </Paper>
+                    )}
                 />
                 <Button
                     variant="outlined"
                     onClick={() => setShowBuilder(true)}
-                    sx={{ minWidth: '120px' }}
+                    sx={{ 
+                        minWidth: '120px',
+                        ...transitions.button
+                    }}
                 >
                     Build Formula
                 </Button>
             </Box>
 
             {showWarnings && verificationStatus.warnings.length > 0 && (
-                <Alert severity="warning" sx={{ mt: 1 }}>
-                    {verificationStatus.warnings.join(', ')}
-                </Alert>
+                <Zoom in={true}>
+                    <Alert 
+                        severity="warning" 
+                        sx={{ 
+                            mt: 1,
+                            ...animations.slideIn
+                        }}
+                    >
+                        {verificationStatus.warnings.join(', ')}
+                    </Alert>
+                </Zoom>
             )}
 
             {verificationStatus.noStructure && (
-                <Chip
-                    label="No structure found. Formula used instead."
-                    color="warning"
-                    size="small"
-                    sx={{ mt: 1 }}
-                />
+                <Fade in={true}>
+                    <Chip
+                        label="No structure found. Formula used instead."
+                        color="warning"
+                        size="small"
+                        sx={{ 
+                            mt: 1,
+                            ...transitions.chip
+                        }}
+                    />
+                </Fade>
             )}
 
             <Dialog
@@ -266,12 +394,59 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
                 onClose={() => setShowBuilder(false)}
                 maxWidth="md"
                 fullWidth
+                PaperProps={{
+                    sx: {
+                        ...transitions.paper
+                    }
+                }}
             >
                 <FormulaBuilder
                     onClose={() => setShowBuilder(false)}
                     onConfirm={handleBuilderConfirm}
                 />
             </Dialog>
+
+            {success && (
+                <Snackbar
+                    open={!!success}
+                    autoHideDuration={3000}
+                    onClose={() => setSuccess(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Zoom in={true}>
+                        <Alert 
+                            severity="success" 
+                            sx={{ 
+                                ...animations.slideIn,
+                                width: '100%'
+                            }}
+                        >
+                            {success}
+                        </Alert>
+                    </Zoom>
+                </Snackbar>
+            )}
+
+            {error && (
+                <Snackbar
+                    open={!!error}
+                    autoHideDuration={6000}
+                    onClose={() => setError(null)}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                >
+                    <Zoom in={true}>
+                        <Alert 
+                            severity="error" 
+                            sx={{ 
+                                ...animations.slideIn,
+                                width: '100%'
+                            }}
+                        >
+                            {error}
+                        </Alert>
+                    </Zoom>
+                </Snackbar>
+            )}
         </Box>
     );
 }; 

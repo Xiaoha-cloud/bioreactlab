@@ -41,47 +41,74 @@ export const rotate = keyframes`
   }
 `;
 
+export const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
 // Animation styles
 export const animations = {
-    fadeIn: {
-        animation: `${fadeIn} 0.3s ease-in-out`,
-    },
-    slideIn: {
-        animation: `${slideIn} 0.3s ease-out`,
-    },
-    scaleIn: {
-        animation: `${scaleIn} 0.2s ease-out`,
-    },
-    rotate: {
-        animation: `${rotate} 1s linear infinite`,
-    },
+  fadeIn: {
+    animation: `${fadeIn} 0.3s ease-in-out`,
+  },
+  slideIn: {
+    animation: `${slideIn} 0.3s ease-out`,
+  },
+  scaleIn: {
+    animation: `${scaleIn} 0.2s ease-out`,
+  },
+  rotate: {
+    animation: `${rotate} 1s linear infinite`,
+  },
+  spin: {
+    animation: `${spin} 1s linear infinite`,
+  },
 };
 
 // Transition styles
 export const transitions = {
-    button: {
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-            transform: 'translateY(-2px)',
-        },
+  button: {
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      transform: 'translateY(-2px)',
     },
-    card: {
-        transition: 'all 0.3s ease-in-out',
-        '&:hover': {
-            transform: 'translateY(-4px)',
-            boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
-        },
+  },
+  card: {
+    transition: 'all 0.3s ease-in-out',
+    '&:hover': {
+      transform: 'translateY(-4px)',
+      boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.2)',
     },
-    input: {
-        transition: 'all 0.2s ease-in-out',
-        '&:focus': {
-            transform: 'scale(1.02)',
-        },
+  },
+  input: {
+    transition: 'all 0.2s ease-in-out',
+    '&:focus': {
+      transform: 'scale(1.02)',
     },
-    icon: {
-        transition: 'all 0.2s ease-in-out',
-        '&:hover': {
-            transform: 'scale(1.1)',
-        },
+  },
+  icon: {
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      transform: 'scale(1.1)',
     },
+  },
+  chip: {
+    transition: 'all 0.2s ease-in-out',
+    '&:hover': {
+      transform: 'scale(1.05)',
+    },
+  },
+  container: {
+    transition: 'all 0.3s ease-in-out',
+  },
+  paper: {
+    transition: 'all 0.3s ease-in-out',
+    '&:hover': {
+      boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
+    },
+  },
 }; 
