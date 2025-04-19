@@ -211,7 +211,7 @@ export const FormulaAutocomplete: React.FC<FormulaAutocompleteProps> = ({
     };
 
     // Render option in dropdown
-    const renderOption = (props: React.HTMLAttributes<HTMLLIElement>, option: Formula, state: AutocompleteRenderOptionState) => (
+    const renderOption = (props: React.HTMLAttributes<HTMLLIElement>, option: Formula) => (
         <Grow in={true} timeout={300}>
             <li {...props}>
                 <Box sx={{ 

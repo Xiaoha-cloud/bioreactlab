@@ -1,9 +1,7 @@
 import * as React from 'react';
 import { useState } from 'react';
-import axios, { AxiosError } from 'axios';
+import { AxiosError } from 'axios';
 import api from '../services/api';
-import { FormulaAutocomplete } from '../components/FormulaAutocomplete';
-import { FormulaBuilder } from '../components/FormulaBuilder';
 import { 
     Button, 
     TextField, 
@@ -23,7 +21,6 @@ import {
     Fade,
     Zoom,
     useTheme,
-    useMediaQuery,
     Box,
     Grow,
     IconButton
@@ -32,8 +29,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { MoleculeViewer } from '../components/MoleculeViewer';
 import OCL from 'openchemlib/full';
-import ChemicalEditor from '../components/ChemicalEditor';
-import { Edit as EditIcon } from '@mui/icons-material';
 import { StandaloneStructServiceProvider } from '../services/StandaloneStructServiceProvider';
 import { animations, transitions } from '../styles/animations';
 
@@ -74,8 +69,6 @@ interface ErrorResponse {
 
 const CreateReactionPage: React.FC<{}> = () => {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-    const isTablet = useMediaQuery(theme.breakpoints.down('md'));
     const [skipAtomMapping] = useState(false);
     const [substrates, setSubstrates] = useState<Metabolite[]>([{ 
         name: '', 

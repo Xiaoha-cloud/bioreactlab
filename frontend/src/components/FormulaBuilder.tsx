@@ -18,8 +18,8 @@ interface FormulaBuilderProps {
 export const FormulaBuilder: React.FC<FormulaBuilderProps> = ({ onClose, onConfirm }) => {
     const [substrates, setSubstrates] = useState<Metabolite[]>([]);
     const [products, setProducts] = useState<Metabolite[]>([]);
-    const [error, setError] = useState<string>('');
-    const [success, setSuccess] = useState<string>('');
+    const [error, setError] = useState<string | null>(null);
+    const [success, setSuccess] = useState<string | null>(null);
 
     const addMetabolite = (isSubstrate: boolean) => {
         const newMetabolite: Metabolite = {

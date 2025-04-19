@@ -15,7 +15,7 @@ import {
     Grow,
     Zoom,
     Typography,
-    Paper
+    TextField
 } from '@mui/material';
 import { animations, transitions } from '../styles/animations';
 import 'ketcher-react/dist/index.css';
