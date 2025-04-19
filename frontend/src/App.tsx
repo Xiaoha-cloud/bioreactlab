@@ -8,18 +8,18 @@ import './styles/responsive.css';
 import HomePage from './pages/HomePage';
 import CreateReactionPage from './pages/CreateReactionPage';
 
-function App() {
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/create-reaction" element={<CreateReactionPage />} />
-        </Routes>
-      </Router>
-    </ThemeProvider>
-  );
-}
+const App: React.FC = () => {
+    return (
+        <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <Router>
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/create-reaction" element={<CreateReactionPage />} />
+                </Routes>
+            </Router>
+        </ThemeProvider>
+    );
+};
 
 export default App;

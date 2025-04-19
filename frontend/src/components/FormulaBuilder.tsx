@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Grid, Button, Typography, Alert, TextField, Box, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { Grid, Button, Typography, Alert, TextField, IconButton, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { Add as AddIcon, Remove as RemoveIcon } from '@mui/icons-material';
 
 interface Metabolite {

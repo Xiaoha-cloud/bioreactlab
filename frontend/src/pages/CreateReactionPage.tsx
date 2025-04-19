@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AxiosError } from 'axios';
 import api from '../services/api';
 import { FormulaAutocomplete } from '../components/FormulaAutocomplete';
@@ -9,15 +9,8 @@ import {
     TextField, 
     MenuItem, 
     Alert, 
-    Paper, 
-    Box, 
-    IconButton, 
     Container, 
     Typography, 
-    Chip, 
-    Dialog, 
-    DialogTitle, 
-    DialogContent, 
     Grid,
     AppBar,
     Toolbar,
@@ -26,10 +19,8 @@ import {
     StepLabel,
     Card,
     CardContent,
-    CardActions,
     Divider,
     Fade,
-    Grow,
     Zoom,
     useTheme,
     useMediaQuery
@@ -448,7 +439,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                                 <TextField
                                     fullWidth
                                     label="Coefficient"
-                type="number"
+                                    type="number"
                                     value={metabolite.coefficient}
                                     onChange={(e) => handleInputChange(index, 'coefficient', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
@@ -459,7 +450,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                                     fullWidth
                                     select
                                     label="Compartment"
-                value={metabolite.compartment}
+                                    value={metabolite.compartment}
                                     onChange={(e) => handleInputChange(index, 'compartment', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
                                 >
@@ -475,7 +466,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                                     fullWidth
                                     select
                                     label="Type"
-                value={metabolite.type}
+                                    value={metabolite.type}
                                     onChange={(e) => handleInputChange(index, 'type', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
                                 >
@@ -520,7 +511,7 @@ const CreateReactionPage: React.FC<{}> = () => {
     };
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+        <Container maxWidth="lg" sx={{ py: 4 }}>
             <AppBar position="static" color="primary" elevation={0}>
                 <Toolbar>
                     <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -529,98 +520,96 @@ const CreateReactionPage: React.FC<{}> = () => {
                 </Toolbar>
             </AppBar>
 
-            <Container maxWidth="lg" sx={{ py: 4 }}>
-                <Stepper activeStep={0} sx={{ mb: 4 }}>
-                    <Step>
-                        <StepLabel>Define Metabolites</StepLabel>
-                    </Step>
-                    <Step>
-                        <StepLabel>Balance Reaction</StepLabel>
-                    </Step>
-                    <Step>
-                        <StepLabel>Review & Submit</StepLabel>
-                    </Step>
-                </Stepper>
+            <Stepper activeStep={0} sx={{ mb: 4 }}>
+                <Step>
+                    <StepLabel>Define Metabolites</StepLabel>
+                </Step>
+                <Step>
+                    <StepLabel>Balance Reaction</StepLabel>
+                </Step>
+                <Step>
+                    <StepLabel>Review & Submit</StepLabel>
+                </Step>
+            </Stepper>
 
-                <Grid container spacing={4}>
-                    <Grid item xs={12} md={6}>
-                        <Card sx={{ ...transitions.card }}>
-                            <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    Substrates
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                {substrates.map((substrate, index) => renderMetaboliteRow(substrate, index, 'reactant'))}
-                                <Button
-                                    startIcon={<AddIcon />}
-                            onClick={() => handleAddRow(setSubstrates)}
-                                    sx={{ mt: 2, ...transitions.button }}
-                                >
-                                    Add Substrate
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                        <Card sx={{ ...transitions.card }}>
-                            <CardContent>
-                                <Typography variant="h6" gutterBottom>
-                                    Products
-                                </Typography>
-                                <Divider sx={{ mb: 2 }} />
-                                {products.map((product, index) => renderMetaboliteRow(product, index, 'product'))}
-                                <Button
-                                    startIcon={<AddIcon />}
-                            onClick={() => handleAddRow(setProducts)}
-                                    sx={{ mt: 2, ...transitions.button }}
-                                >
-                                    Add Product
-                                </Button>
-                            </CardContent>
-                        </Card>
-                    </Grid>
+            <Grid container spacing={4}>
+                <Grid item xs={12} md={6}>
+                    <Card sx={{ ...transitions.card }}>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Substrates
+                            </Typography>
+                            <Divider sx={{ mb: 2 }} />
+                            {substrates.map((substrate, index) => renderMetaboliteRow(substrate, index, 'reactant'))}
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={() => handleAddRow(setSubstrates)}
+                                sx={{ mt: 2, ...transitions.button }}
+                            >
+                                Add Substrate
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </Grid>
 
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
-                    <Button
-                        variant="contained"
-                        color="primary"
-                        onClick={handleBalanceCheck}
-                        sx={transitions.button}
-                    >
-                        Check Balance
-                    </Button>
-                    <Button
-                        variant="contained"
-                        color="secondary"
-                        onClick={handleSubmit}
-                        sx={transitions.button}
-                    >
-                        Submit Reaction
-                    </Button>
-                </Box>
+                <Grid item xs={12} md={6}>
+                    <Card sx={{ ...transitions.card }}>
+                        <CardContent>
+                            <Typography variant="h6" gutterBottom>
+                                Products
+                            </Typography>
+                            <Divider sx={{ mb: 2 }} />
+                            {products.map((product, index) => renderMetaboliteRow(product, index, 'product'))}
+                            <Button
+                                startIcon={<AddIcon />}
+                                onClick={() => handleAddRow(setProducts)}
+                                sx={{ mt: 2, ...transitions.button }}
+                            >
+                                Add Product
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
 
-                {balanceStatus && (
-                    <Zoom in={true}>
-                        <Alert 
-                            severity={balanceStatus.balanced ? "success" : "error"} 
-                            sx={{ mt: 2, ...animations.slideIn }}
-                        >
-                            {balanceStatus.message}
-                        </Alert>
-                    </Zoom>
-                )}
-
-                {error && (
-                    <Zoom in={true}>
-                        <Alert severity="error" sx={{ mt: 2, ...animations.slideIn }}>
-                            {error}
-                        </Alert>
-                    </Zoom>
-                )}
+            <Container sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
+                <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={handleBalanceCheck}
+                    sx={transitions.button}
+                >
+                    Check Balance
+                </Button>
+                <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleSubmit}
+                    sx={transitions.button}
+                >
+                    Submit Reaction
+                </Button>
             </Container>
-        </Box>
+
+            {balanceStatus && (
+                <Zoom in={true}>
+                    <Alert 
+                        severity={balanceStatus.balanced ? "success" : "error"} 
+                        sx={{ mt: 2, ...animations.slideIn }}
+                    >
+                        {balanceStatus.message}
+                    </Alert>
+                </Zoom>
+            )}
+
+            {error && (
+                <Zoom in={true}>
+                    <Alert severity="error" sx={{ mt: 2, ...animations.slideIn }}>
+                        {error}
+                    </Alert>
+                </Zoom>
+            )}
+        </Container>
     );
 };
 
