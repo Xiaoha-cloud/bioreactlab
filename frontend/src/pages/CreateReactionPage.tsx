@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { AxiosError } from 'axios';
+import axios, { AxiosError } from 'axios';
 import api from '../services/api';
 import { FormulaAutocomplete } from '../components/FormulaAutocomplete';
 import { FormulaBuilder } from '../components/FormulaBuilder';
@@ -23,7 +23,10 @@ import {
     Fade,
     Zoom,
     useTheme,
-    useMediaQuery
+    useMediaQuery,
+    Box,
+    Grow,
+    IconButton
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
