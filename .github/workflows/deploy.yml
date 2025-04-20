@@ -77,18 +77,11 @@ jobs:
     runs-on: ubuntu-latest
     container: ghcr.io/railwayapp/cli:latest
     if: github.ref == 'refs/heads/main'
+    env:
+      SVC_ID: bioreactlab-backend
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Deploy to Railway
+      - run: railway up --service=${{ env.SVC_ID }}
         working-directory: backend
-        run: |
-          # Create railway.token file
-          echo ${{ secrets.RAILWAY_TOKEN }} > railway.token
-          # Login using token file
-          railway login --token-file railway.token
-          # Link to project
-          railway link
-          # Deploy service
-          railway up --service=bioreactlab-backend --verbose
 

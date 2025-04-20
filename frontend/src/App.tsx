@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from './styles/theme';
@@ -12,12 +12,10 @@ const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Router>
-                <Routes>
-                    <Route path="/" element={<HomePage />} />
-                    <Route path="/create-reaction" element={<CreateReactionPage />} />
-                </Routes>
-            </Router>
+            <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/create-reaction" element={<CreateReactionPage />} />
+            </Routes>
         </ThemeProvider>
     );
 };

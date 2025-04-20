@@ -3,6 +3,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 body {
@@ -92,24 +93,23 @@ p {
     margin-bottom: 1rem;
 }
 
-/* Scrollbar styling */
+/* Modern Scrollbar */
 ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
+    background: #1a1f2c;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #888;
+    background: #3a3f4c;
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #4a90e2;
 }
 
 /* Form elements */
@@ -121,16 +121,87 @@ select {
     line-height: inherit;
 }
 
-/* Focus styles */
-:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.2);
+/* Smooth Transitions */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* Loading states */
+/* Card Hover Effects */
+.MuiCard-root {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.MuiCard-root:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Button Hover Effects */
+.MuiButton-root {
+    transition: all 0.3s ease !important;
+}
+
+.MuiButton-contained:hover {
+    transform: translateY(-2px);
+}
+
+/* Input Focus Effects */
+.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline {
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+/* Glass Morphism Effect */
+.glass-effect {
+    background: rgba(42, 47, 60, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(58, 63, 76, 0.3);
+}
+
+/* Gradient Text */
+.gradient-text {
+    background: linear-gradient(45deg, #4a90e2, #ff6b6b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+/* Loading Animation */
+@keyframes pulse {
+    0% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.6;
+    }
+}
+
 .loading {
-    opacity: 0.7;
-    pointer-events: none;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Responsive Typography */
+@media (max-width: 600px) {
+    html {
+        font-size: 14px;
+    }
+}
+
+/* Custom Focus Styles */
+*:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.3);
+}
+
+/* Selection Color */
+::selection {
+    background: rgba(74, 144, 226, 0.3);
+    color: #ffffff;
 }
 
 /* Error states */
