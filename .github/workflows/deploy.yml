@@ -47,7 +47,6 @@ jobs:
         run: python manage.py test
         env:
           DJANGO_SETTINGS_MODULE: config.settings
-          # 可选数据库配置
           DATABASE_URL: sqlite:///db.sqlite3
 
   deploy-frontend:
@@ -78,16 +77,18 @@ jobs:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Install Railway CLI
-        run: npm i -g @railway/cli
-      
-      - name: Deploy to Railway
-        working-directory: backend 
-        run: |
-          railway link ${{ secrets.RAILWAY_PROJECT_ID }}  # 链接到特定项目
-          railway up --service ${{ secrets.RAILWAY_SERVICE_NAME }}  # 指定服务名称
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          - uses: actions/checkout@v3
+          
+          - name: Install Railway CLI
+            run: npm i -g @railway/cli
+          
+          - name: Deploy to Railway
+            working-directory: backend 
+            run: |
+              railway link
+              railway up
+            env:
+              RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+              RAILWAY_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
+              RAILWAY_SERVICE_NAME: ${{ secrets.RAILWAY_SERVICE_NAME }}
 
