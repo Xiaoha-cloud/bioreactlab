@@ -130,7 +130,7 @@ The application uses GitHub Actions for CI/CD:
 - Backend is deployed to Railway
 
 
-## 📝 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
