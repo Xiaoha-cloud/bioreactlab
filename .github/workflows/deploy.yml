@@ -75,13 +75,15 @@ jobs:
   deploy-backend:
     needs: build-and-test
     runs-on: ubuntu-latest
-    container: ghcr.io/railwayapp/cli:latest
     if: github.ref == 'refs/heads/main'
-    env:
-      SVC_ID: ${{ secrets.RAILWAY_SERVICE_ID }}
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     steps:
       - uses: actions/checkout@v3
-      - run: railway up --service=${{ env.SVC_ID }}
+      
+      - name: Deploy to Railway
+        uses: bervProject/railway-deploy@main
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+          service: ${{ secrets.RAILWAY_SERVICE_NAME }}
+          detach: false
         working-directory: backend
 
