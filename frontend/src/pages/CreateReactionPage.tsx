@@ -28,7 +28,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import { MoleculeViewer } from '../components/MoleculeViewer';
 import OCL from 'openchemlib/full';
-import { StandaloneStructServiceProvider } from '../services/StandaloneStructServiceProvider';
 import { animations, transitions } from '../styles/animations';
 
 interface Metabolite {
@@ -86,11 +85,8 @@ const CreateReactionPage: React.FC<{}> = () => {
         id: '',
         coefficient: '1'
     }]);
-    const [response, setResponse] = useState<any>(null);
     const [balanceStatus, setBalanceStatus] = useState<{ balanced: boolean; message: string } | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [editingMetabolite, setEditingMetabolite] = useState<Metabolite | null>(null);
-    const [editorOpen, setEditorOpen] = useState(false);
 
     const compartments = ['C', 'M', 'Other'];
     const types = ['VMH', 'Custom'];
@@ -353,46 +349,6 @@ const CreateReactionPage: React.FC<{}> = () => {
                 balanced: false,
                 message: '❌ Error checking balance. Please try again.'
             });
-        }
-    };
-
-    const handleEditorOpen = (metabolite: Metabolite) => {
-        setEditingMetabolite(metabolite);
-        setEditorOpen(true);
-    };
-
-    const handleEditorClose = () => {
-        setEditorOpen(false);
-        setEditingMetabolite(null);
-    };
-
-    const handleStructureChange = async (molfile: string) => {
-        if (!editingMetabolite) return;
-
-        try {
-            const structService = new StandaloneStructServiceProvider();
-            const smiles = await structService.convert(molfile, 'smiles');
-            
-            if (typeof smiles === 'string') {
-                const updatedMetabolite = {
-                    ...editingMetabolite,
-                    smiles,
-                    verified: true,
-                    warning: ''
-                };
-
-                if (editingMetabolite.type === 'reactant') {
-                    setSubstrates(substrates.map(r => 
-                        r.id === editingMetabolite.id ? updatedMetabolite : r
-                    ));
-                } else {
-                    setProducts(products.map(p => 
-                        p.id === editingMetabolite.id ? updatedMetabolite : p
-                    ));
-                }
-            }
-        } catch (error) {
-            console.error('Error converting structure:', error);
         }
     };
 
