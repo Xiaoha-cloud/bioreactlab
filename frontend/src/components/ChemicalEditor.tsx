@@ -2,20 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Editor } from 'ketcher-react';
 import { StandaloneStructServiceProvider } from 'ketcher-standalone';
 import { 
+    Box, 
+    Button, 
     Dialog, 
     DialogTitle, 
     DialogContent, 
-    DialogActions, 
-    Button, 
-    Box,
+    DialogActions,
+    Typography,
     CircularProgress,
     Alert,
     Snackbar,
     Fade,
-    Grow,
-    Zoom,
-    Typography,
-    TextField
+    Zoom
 } from '@mui/material';
 import { animations, transitions } from '../styles/animations';
 import 'ketcher-react/dist/index.css';

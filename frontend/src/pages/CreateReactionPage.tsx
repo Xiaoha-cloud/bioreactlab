@@ -20,7 +20,6 @@ import {
     Divider,
     Fade,
     Zoom,
-    useTheme,
     Box,
     Grow,
     IconButton
@@ -31,14 +30,6 @@ import { MoleculeViewer } from '../components/MoleculeViewer';
 import OCL from 'openchemlib/full';
 import { StandaloneStructServiceProvider } from '../services/StandaloneStructServiceProvider';
 import { animations, transitions } from '../styles/animations';
-
-interface Formula {
-    name: string;
-    formula: string;
-    source: string;
-    noStructure: boolean;
-    warnings?: string[];
-}
 
 interface Metabolite {
     name: string;
@@ -68,7 +59,6 @@ interface ErrorResponse {
 }
 
 const CreateReactionPage: React.FC<{}> = () => {
-    const theme = useTheme();
     const [skipAtomMapping] = useState(false);
     const [substrates, setSubstrates] = useState<Metabolite[]>([{ 
         name: '', 
@@ -277,7 +267,7 @@ const CreateReactionPage: React.FC<{}> = () => {
         setResponse(null);
 
         try {
-            // 验证所有代谢物是否都有化学式（如果存在）
+            // Verify if all metabolites have chemical formulas (if they exist)
             const allMetabolites = [...substrates, ...products];
             const invalidMetabolites = allMetabolites.filter(m => 
                 m.formula && !m.verified
@@ -288,21 +278,21 @@ const CreateReactionPage: React.FC<{}> = () => {
                 return;
             }
 
-            // 准备提交数据
+            // Prepare submission data
             const submitData = {
                 substrates: substrates.map(({ name, stoichiometry, compartment, type, formula }) => ({
                     name,
                     stoichiometry: parseFloat(stoichiometry),
                     compartment,
                     type,
-                    ...(formula && { formula }) // 只在存在化学式时包含该字段
+                    ...(formula && { formula }) // Only include formula field if it exists
                 })),
                 products: products.map(({ name, stoichiometry, compartment, type, formula }) => ({
                     name,
                     stoichiometry: parseFloat(stoichiometry),
                     compartment,
                     type,
-                    ...(formula && { formula }) // 只在存在化学式时包含该字段
+                    ...(formula && { formula }) // Only include formula field if it exists
                 })),
                 direction: '->',
                 skipAtomMapping,
@@ -315,7 +305,7 @@ const CreateReactionPage: React.FC<{}> = () => {
         } catch (err) {
             const error = err as AxiosError<ErrorResponse>;
             if (error.response?.data?.formula_errors) {
-                // 处理化学式相关的错误
+                // Handle chemical formula related errors
                 const formulaErrors = error.response.data.formula_errors;
                 setError(`Chemical formula validation failed: ${Object.entries(formulaErrors)
                     .map(([name, error]) => `${name}: ${error}`)

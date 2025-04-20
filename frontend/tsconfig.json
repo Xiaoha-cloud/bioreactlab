@@ -1,5 +1,5 @@
-// 删除 tsconfig.app.json 和 tsconfig.node.json
-// 直接使用单个 tsconfig.json
+// Delete tsconfig.app.json and tsconfig.node.json
+// Use a single tsconfig.json directly
 {
   "compilerOptions": {
     "target": "ES2020",
