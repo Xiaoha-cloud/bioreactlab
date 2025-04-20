@@ -85,5 +85,5 @@ jobs:
           railway_token: ${{ secrets.RAILWAY_TOKEN }}
           service: ${{ secrets.RAILWAY_SERVICE_NAME }}
           detach: false
-        working-directory: backend
+          working_directory: backend
 
