@@ -264,7 +264,6 @@ const CreateReactionPage: React.FC<{}> = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
-        setResponse(null);
 
         try {
             // Verify if all metabolites have chemical formulas (if they exist)
@@ -300,8 +299,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                 organ: 'Default'
             };
 
-            const response = await api.post('/api/reactions/create/', submitData);
-            setResponse(response.data);
+            await api.post('/api/reactions/create/', submitData);
         } catch (err) {
             const error = err as AxiosError<ErrorResponse>;
             if (error.response?.data?.formula_errors) {
