@@ -51,6 +51,7 @@ npm run dev
 ```
 
 ## Project Structure
+```
 bioreactlab/
 ├── frontend/ # React frontend application
 │ ├── src/
@@ -64,7 +65,7 @@ bioreactlab/
 │ ├── metabolic/ # Metabolic processing logic
 │ └── reactions/ # Reaction management
 └── docs/ # Documentation
-
+```
 
 ## Technology Stack
 
