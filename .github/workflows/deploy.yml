@@ -87,6 +87,6 @@ jobs:
       - name: Deploy to Railway
         working-directory: backend
         run: |
-          railway link ${{ env.RAILWAY_PROJECT_ID }}
+          railway link
           railway up --service=${{ env.RAILWAY_SERVICE_NAME }}
 
