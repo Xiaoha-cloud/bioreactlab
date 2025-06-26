@@ -111,6 +111,7 @@ def check_balance(request):
     }
     """
     try:
+        print("Received balance check request:", request.data)
         reactants = request.data.get("reactants", [])
         products = request.data.get("products", [])
         
@@ -124,17 +125,29 @@ def check_balance(request):
             if not isinstance(pair[0], (int, float)) or not isinstance(pair[1], str):
                 return Response({"error": "Coefficient must be a number and formula must be a string"}, status=400)
         
-        # Get detailed balance status
-        status = get_balance_status(reactants, products)
+        print("Validating reactants:", reactants)
+        print("Validating products:", products)
         
-        return Response({
-            "balanced": status["is_balanced"],
-            "reactant_counts": status["reactant_counts"],
-            "product_counts": status["product_counts"]
-        })
+        # Get detailed balance status
+        try:
+            status = get_balance_status(reactants, products)
+            print("Balance status:", status)
+            
+            return Response({
+                "balanced": status["is_balanced"],
+                "reactant_counts": status["reactant_counts"],
+                "product_counts": status["product_counts"]
+            })
+        except ValueError as ve:
+            print("Error in get_balance_status:", str(ve))
+            return Response({"error": str(ve)}, status=400)
+        except Exception as e:
+            print("Unexpected error in get_balance_status:", str(e))
+            return Response({"error": f"Error calculating balance: {str(e)}"}, status=500)
         
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
+        print("Error in check_balance:", str(e))
+        return Response({"error": f"Error processing request: {str(e)}"}, status=500)
 
 @csrf_exempt
 @require_http_methods(["POST"])

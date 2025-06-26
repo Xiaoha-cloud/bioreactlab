@@ -57,6 +57,34 @@ interface ErrorResponse {
     [key: string]: any;
 }
 
+// Get SMILES from PubChem by formula, handling asynchronous Waiting response
+async function getSmilesFromFormula(formula: string): Promise<string | null> {
+    try {
+        // First request to PubChem
+        let response = await fetch(
+            `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/formula/${encodeURIComponent(formula)}/property/CanonicalSMILES/JSON`
+        );
+        let data = await response.json();
+
+        // If PubChem returns a Waiting response, poll with ListKey
+        let tries = 0;
+        while (data.Waiting && data.Waiting.ListKey && tries < 10) {
+            await new Promise(res => setTimeout(res, 1000)); // Wait 1 second
+            response = await fetch(
+                `https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/listkey/${data.Waiting.ListKey}/property/CanonicalSMILES/JSON`
+            );
+            data = await response.json();
+            tries++;
+        }
+
+        // Extract the first SMILES from the result, if available
+        const smiles = data?.PropertyTable?.Properties?.[0]?.CanonicalSMILES;
+        return smiles || null;
+    } catch (e) {
+        return null;
+    }
+}
+
 const CreateReactionPage: React.FC<{}> = () => {
     const [skipAtomMapping] = useState(false);
     const [substrates, setSubstrates] = useState<Metabolite[]>([{ 
@@ -113,11 +141,61 @@ const CreateReactionPage: React.FC<{}> = () => {
 
     const handleVerify = async (index: number, setState: SetStateFunction, metabolites: Metabolite[]) => {
         const metabolite = metabolites[index];
-        console.log('Verifying metabolite:', metabolite);
+        console.log('Starting verification for metabolite:', {
+            name: metabolite.name,
+            coefficient: metabolite.coefficient,
+            type: metabolite.type,
+            currentState: metabolite
+        });
         
         try {
+            // 改进的化学式验证正则表达式
+            // 匹配格式如: H2O, CO2, CH4, C6H12O6 等
+            const chemicalFormulaRegex = /^([A-Z][a-z]?\d*)+$/;
+            
+            if (chemicalFormulaRegex.test(metabolite.name)) {
+                // Try to get SMILES from PubChem
+                const smiles = await getSmilesFromFormula(metabolite.name);
+                if (smiles) {
+                    setState((prev: Metabolite[]) => {
+                        const newState = prev.map((item: Metabolite, i: number) =>
+                            i === index ? {
+                                ...item,
+                                verified: true,
+                                formula: metabolite.name,
+                                formulaSource: 'user' as const,
+                                smiles: smiles,
+                                noStructure: false,
+                                warnings: [],
+                                warning: '',
+                                coefficient: item.coefficient || '1'
+                            } : item
+                        );
+                        return newState;
+                    });
+                    return;
+                }
+                // 如果查不到 SMILES，可以提示用户或 fallback 到本地验证
+                setState((prev: Metabolite[]) => {
+                    const newState = prev.map((item: Metabolite, i: number) =>
+                        i === index ? { 
+                            ...item, 
+                            verified: false,
+                            formula: metabolite.name,
+                            formulaSource: 'user' as const,
+                            noStructure: true,
+                            warnings: ['No structure found for this formula.'],
+                            warning: 'No structure found for this formula.',
+                            coefficient: item.coefficient || '1'
+                        } : item
+                    );
+                    return newState;
+                });
+                return;
+            }
+
             // Try structure API first
-            console.log('Calling structure API...');
+            console.log('Calling structure API for:', metabolite.name);
             const structureResponse = await api.post('/api/metabolite/validate/', {
                 name: metabolite.name,
                 type: metabolite.type
@@ -132,122 +210,101 @@ const CreateReactionPage: React.FC<{}> = () => {
                     const formula = mol.getMolecularFormula().formula;
                     console.log('Calculated formula:', formula);
                     
-                    setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                        i === index ? { 
-                            ...item, 
-                            verified: true,
-                            smiles: structureResponse.data.structure,
-                            formula: formula,
-                            formulaSource: 'calculated',
-                            noStructure: false,
-                            warnings: [],
-                            warning: '',
-                            coefficient: '1'
-                        } : item
-                    ));
+                    setState((prev: Metabolite[]) => {
+                        const newState = prev.map((item: Metabolite, i: number) =>
+                            i === index ? { 
+                                ...item, 
+                                verified: true,
+                                smiles: structureResponse.data.structure,
+                                formula: formula,
+                                formulaSource: 'calculated' as const,
+                                noStructure: false,
+                                warnings: [],
+                                warning: '',
+                                coefficient: item.coefficient || '1'
+                            } : item
+                        );
+                        console.log('State updated with structure:', newState);
+                        return newState;
+                    });
                 } else if (structureResponse.data.formula) {
                     console.log('No structure but formula found:', structureResponse.data.formula);
-                    // Try to generate structure from formula
-                    try {
-                        const generateResponse = await api.post('/api/formula/generate-structure/', {
-                            formula: structureResponse.data.formula
-                        });
-                        
-                        if (generateResponse.data.smiles) {
-                            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                                i === index ? { 
-                                    ...item, 
-                                    verified: true,
-                                    formula: structureResponse.data.formula,
-                                    smiles: generateResponse.data.smiles,
-                                    molfile: generateResponse.data.molfile,
-                                    formulaSource: 'api',
-                                    noStructure: false,
-                                    warnings: ['Structure generated from formula.'],
-                                    warning: 'Structure generated from formula.',
-                                    coefficient: '1'
-                                } : item
-                            ));
-                        } else {
-                            // Formula found but couldn't generate structure
-                            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                                i === index ? { 
-                                    ...item, 
-                                    verified: true,
-                                    formula: structureResponse.data.formula,
-                                    formulaSource: 'api',
-                                    noStructure: true,
-                                    warnings: ['No structure found. Formula used instead.'],
-                                    warning: 'No structure found. Formula used instead.',
-                                    coefficient: '1'
-                                } : item
-                            ));
-                        }
-                    } catch (error) {
-                        console.error('Error generating structure from formula:', error);
-                        setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
+                    setState((prev: Metabolite[]) => {
+                        const newState = prev.map((item: Metabolite, i: number) =>
                             i === index ? { 
                                 ...item, 
                                 verified: true,
                                 formula: structureResponse.data.formula,
-                                formulaSource: 'api',
+                                formulaSource: 'api' as const,
                                 noStructure: true,
-                                warnings: ['Could not generate structure from formula.'],
-                                warning: 'Could not generate structure from formula.',
-                                coefficient: '1'
+                                warnings: ['No structure found. Formula used instead.'],
+                                warning: 'No structure found. Formula used instead.',
+                                coefficient: item.coefficient || '1'
                             } : item
-                        ));
-                    }
+                        );
+                        console.log('State updated with formula:', newState);
+                        return newState;
+                    });
                 }
                 return;
             }
 
             // If no structure or formula from validate endpoint, try formula API
-            console.log('No structure found, trying formula API...');
+            console.log('No structure found, trying formula API for:', metabolite.name);
             const formulaResponse = await api.get(`/api/formula/search?name=${encodeURIComponent(metabolite.name)}`);
             console.log('Formula API response:', formulaResponse.data);
             
             if (formulaResponse.data.results && formulaResponse.data.results.length > 0) {
-                console.log('Formula found from search API');
-                // Formula found
-                setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                    i === index ? { 
-                        ...item, 
-                        verified: true,
-                        formula: formulaResponse.data.results[0].formula,
-                        formulaSource: 'api',
-                        noStructure: true,
-                        warnings: ['No structure found. Formula used instead.'],
-                        warning: 'No structure found. Formula used instead.',
-                        coefficient: '1'
-                    } : item
-                ));
+                console.log('Formula found from search API:', formulaResponse.data.results[0].formula);
+                setState((prev: Metabolite[]) => {
+                    const newState = prev.map((item: Metabolite, i: number) =>
+                        i === index ? { 
+                            ...item, 
+                            verified: true,
+                            formula: formulaResponse.data.results[0].formula,
+                            formulaSource: 'api' as const,
+                            noStructure: true,
+                            warnings: ['No structure found. Formula used instead.'],
+                            warning: 'No structure found. Formula used instead.',
+                            coefficient: item.coefficient || '1'
+                        } : item
+                    );
+                    console.log('State updated with formula from search:', newState);
+                    return newState;
+                });
                 return;
             }
 
-            console.log('No formula found, setting not found state');
-            // No structure or formula found
-            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                i === index ? { 
-                    ...item, 
-                    verified: false,
-                    noStructure: true,
-                    warnings: ['Not found. Please enter manually.'],
-                    warning: 'Not found. Please enter manually.',
-                    coefficient: '1'
-                } : item
-            ));
+            console.log('No formula found for:', metabolite.name);
+            setState((prev: Metabolite[]) => {
+                const newState = prev.map((item: Metabolite, i: number) =>
+                    i === index ? { 
+                        ...item, 
+                        verified: false,
+                        noStructure: true,
+                        warnings: ['Not found. Please enter manually.'],
+                        warning: 'Not found. Please enter manually.',
+                        coefficient: item.coefficient || '1'
+                    } : item
+                );
+                console.log('State updated with not found status:', newState);
+                return newState;
+            });
         } catch (error) {
-            console.error('Error validating metabolite:', error);
-            setState((prev: Metabolite[]) => prev.map((item: Metabolite, i: number) =>
-                i === index ? { 
-                    ...item, 
-                    verified: false,
-                    warnings: ['Error verifying metabolite. Please try again.'],
-                    warning: 'Error verifying metabolite. Please try again.',
-                    coefficient: '1'
-                } : item
-            ));
+            console.error('Error in handleVerify:', error);
+            setState((prev: Metabolite[]) => {
+                const newState = prev.map((item: Metabolite, i: number) =>
+                    i === index ? { 
+                        ...item, 
+                        verified: false,
+                        warnings: ['Error verifying metabolite. Please try again.'],
+                        warning: 'Error verifying metabolite. Please try again.',
+                        coefficient: item.coefficient || '1'
+                    } : item
+                );
+                console.log('State updated with error:', newState);
+                return newState;
+            });
         }
     };
 
@@ -305,32 +362,46 @@ const CreateReactionPage: React.FC<{}> = () => {
                     .map(([name, error]) => `${name}: ${error}`)
                     .join(', ')}`);
             } else {
-                setError(error.response?.data?.toString() || 'An error occurred');
-            }
+            setError(error.response?.data?.toString() || 'An error occurred');
+        }
         }
     };
 
     const handleBalanceCheck = async () => {
         try {
+            console.log('Current substrates state:', substrates);
+            console.log('Current products state:', products);
+            
+            // Filter out unverified metabolites and ensure formulas are valid
+            const validSubstrates = substrates.filter(m => m.verified && m.formula);
+            const validProducts = products.filter(m => m.verified && m.formula);
+
+            console.log('Valid substrates after filtering:', validSubstrates);
+            console.log('Valid products after filtering:', validProducts);
+
+            if (validSubstrates.length === 0 || validProducts.length === 0) {
+                setBalanceStatus({
+                    balanced: false,
+                    message: '❌ Please verify all metabolites before checking balance'
+                });
+                return;
+            }
+
             // Prepare data for balance check
             const balanceData = {
-                reactants: substrates
-                    .filter(m => m.verified && (m.formula || m.smiles))
-                    .map(m => ({
-                        coefficient: parseFloat(m.stoichiometry),
-                        formula: m.formula,
-                        smiles: m.smiles
-                    })),
-                products: products
-                    .filter(m => m.verified && (m.formula || m.smiles))
-                    .map(m => ({
-                        coefficient: parseFloat(m.stoichiometry),
-                        formula: m.formula,
-                        smiles: m.smiles
-                    }))
+                reactants: validSubstrates.map(m => {
+                    console.log('Processing substrate for balance check:', m);
+                    return [parseFloat(m.coefficient), m.formula];
+                }),
+                products: validProducts.map(m => {
+                    console.log('Processing product for balance check:', m);
+                    return [parseFloat(m.coefficient), m.formula];
+                })
             };
 
+            console.log('Final balance check request data:', balanceData);
             const response = await api.post('/api/reaction/check-balance/', balanceData);
+            console.log('Balance check response:', response.data);
             
             if (response.data.balanced) {
                 setBalanceStatus({
@@ -338,16 +409,32 @@ const CreateReactionPage: React.FC<{}> = () => {
                     message: '✅ Reaction is balanced'
                 });
             } else {
+                // Show detailed imbalance information
+                const reactantCounts = response.data.reactant_counts;
+                const productCounts = response.data.product_counts;
+                const imbalanceDetails = Object.keys({...reactantCounts, ...productCounts})
+                    .map(element => {
+                        const reactantCount = reactantCounts[element] || 0;
+                        const productCount = productCounts[element] || 0;
+                        if (reactantCount !== productCount) {
+                            return `${element}: ${reactantCount} → ${productCount}`;
+                        }
+                        return null;
+                    })
+                    .filter(Boolean)
+                    .join(', ');
+                
                 setBalanceStatus({
                     balanced: false,
-                    message: '❌ Reaction is not balanced'
+                    message: `❌ Reaction is not balanced. Imbalance: ${imbalanceDetails}`
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error checking balance:', error);
+            const errorMessage = error.response?.data?.error || error.message || 'Unknown error';
             setBalanceStatus({
                 balanced: false,
-                message: '❌ Error checking balance. Please try again.'
+                message: `❌ Error checking balance: ${errorMessage}`
             });
         }
     };
@@ -368,18 +455,18 @@ const CreateReactionPage: React.FC<{}> = () => {
                                 <TextField
                                     fullWidth
                                     label="Name"
-                                    value={metabolite.name}
+                value={metabolite.name}
                                     onChange={(e) => handleInputChange(index, 'name', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     error={!!metabolite.warning}
                                     helperText={metabolite.warning}
                                     sx={transitions.input}
-                                />
+            />
                             </Grid>
                             <Grid item xs={12} sm={6} md={2}>
                                 <TextField
                                     fullWidth
                                     label="Coefficient"
-                                    type="number"
+                type="number"
                                     value={metabolite.coefficient}
                                     onChange={(e) => handleInputChange(index, 'coefficient', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
@@ -390,15 +477,15 @@ const CreateReactionPage: React.FC<{}> = () => {
                                     fullWidth
                                     select
                                     label="Compartment"
-                                    value={metabolite.compartment}
+                value={metabolite.compartment}
                                     onChange={(e) => handleInputChange(index, 'compartment', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
-                                >
+            >
                                     {compartments.map((option) => (
                                         <MenuItem key={option} value={option}>
                                             {option}
                                         </MenuItem>
-                                    ))}
+                ))}
                                 </TextField>
                             </Grid>
                             <Grid item xs={12} sm={6} md={2}>
@@ -406,15 +493,15 @@ const CreateReactionPage: React.FC<{}> = () => {
                                     fullWidth
                                     select
                                     label="Type"
-                                    value={metabolite.type}
+                value={metabolite.type}
                                     onChange={(e) => handleInputChange(index, 'type', e.target.value, type === 'reactant' ? setSubstrates : setProducts)}
                                     sx={transitions.input}
-                                >
+            >
                                     {types.map((option) => (
                                         <MenuItem key={option} value={option}>
                                             {option}
                                         </MenuItem>
-                                    ))}
+                ))}
                                 </TextField>
                             </Grid>
                             <Grid item xs={12} sm={6} md={2}>
@@ -424,8 +511,8 @@ const CreateReactionPage: React.FC<{}> = () => {
                                         color="primary"
                                         onClick={() => handleVerify(index, type === 'reactant' ? setSubstrates : setProducts, type === 'reactant' ? substrates : products)}
                                         sx={transitions.button}
-                                    >
-                                        Verify
+                >
+                    Verify
                                     </Button>
                                     <IconButton
                                         onClick={() => handleRemoveRow(index, type === 'reactant' ? setSubstrates : setProducts)}
@@ -447,7 +534,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                     </CardContent>
                 </Card>
             </Grow>
-        );
+    );
     };
 
     return (
@@ -483,9 +570,9 @@ const CreateReactionPage: React.FC<{}> = () => {
                             {substrates.map((substrate, index) => renderMetaboliteRow(substrate, index, 'reactant'))}
                             <Button
                                 startIcon={<AddIcon />}
-                                onClick={() => handleAddRow(setSubstrates)}
+                            onClick={() => handleAddRow(setSubstrates)}
                                 sx={{ mt: 2, ...transitions.button }}
-                            >
+                        >
                                 Add Substrate
                             </Button>
                         </CardContent>
@@ -502,7 +589,7 @@ const CreateReactionPage: React.FC<{}> = () => {
                             {products.map((product, index) => renderMetaboliteRow(product, index, 'product'))}
                             <Button
                                 startIcon={<AddIcon />}
-                                onClick={() => handleAddRow(setProducts)}
+                            onClick={() => handleAddRow(setProducts)}
                                 sx={{ mt: 2, ...transitions.button }}
                             >
                                 Add Product
@@ -542,13 +629,13 @@ const CreateReactionPage: React.FC<{}> = () => {
                 </Zoom>
             )}
 
-            {error && (
+                {error && (
                 <Zoom in={true}>
                     <Alert severity="error" sx={{ mt: 2, ...animations.slideIn }}>
                         {error}
                     </Alert>
                 </Zoom>
-            )}
+                )}
         </Container>
     );
 };

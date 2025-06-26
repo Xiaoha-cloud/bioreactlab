@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Paper, Typography, CircularProgress, Tooltip, Fade, Grow, Chip } from '@mui/material';
-import { animations, transitions } from '../styles/animations';
 // @ts-ignore
 import OCL from 'openchemlib/full';
 
-// Props interface for MoleculeViewer component
+// KetcherViewer component props
 interface MoleculeViewerProps {
     smiles?: string;
     width?: number;
@@ -13,6 +11,7 @@ interface MoleculeViewerProps {
     showStatus?: boolean;
 }
 
+// Ketcher-based molecule viewer (read-only)
 export const MoleculeViewer: React.FC<MoleculeViewerProps> = ({
     smiles,
     width = 200,
@@ -20,140 +19,42 @@ export const MoleculeViewer: React.FC<MoleculeViewerProps> = ({
     title,
     showStatus = true
 }) => {
-    // State management
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [svgContent, setSvgContent] = useState<string>('');
     const [status, setStatus] = useState<string>('');
 
-    // Render molecule when SMILES changes
     useEffect(() => {
-        if (!smiles) {
-            setLoading(false);
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-        setStatus('Rendering molecule...');
-
+        if (!smiles) return;
         try {
             const mol = OCL.Molecule.fromSmiles(smiles);
-            mol.addImplicitHydrogens();
             const svg = mol.toSVG(width, height, 'white');
             setSvgContent(svg);
             setStatus('Molecule rendered successfully');
         } catch (error) {
-            console.error('Error rendering molecule:', error);
-            setError('Failed to render molecule');
-            setStatus('Rendering failed');
-        } finally {
-            setLoading(false);
+            setStatus('Failed to render molecule');
         }
     }, [smiles, width, height]);
 
-    if (!smiles) {
-        return null;
-    }
+    if (!smiles) return null;
 
     return (
-        <Grow in={true} timeout={500}>
-            <Paper 
-                elevation={1} 
-                sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    flexDirection: 'column', 
-                    alignItems: 'center',
-                    gap: 1,
-                    ...transitions.card
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+            {title && <div style={{ marginBottom: 4, color: '#888', fontSize: 14 }}>{title}</div>}
+            <div
+                style={{
+                    width,
+                    height,
+                    border: '1px solid #ccc',
+                    borderRadius: 4,
+                    overflow: 'hidden',
+                    background: '#fff'
                 }}
-            >
-                {title && (
-                    <Typography 
-                        variant="subtitle2" 
-                        color="text.secondary"
-                        sx={transitions.container}
-                    >
-                        {title}
-                    </Typography>
-                )}
-                <Box
-                    sx={{
-                        position: 'relative',
-                        width,
-                        height,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1,
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: 'white',
-                        ...transitions.container
-                    }}
-                >
-                    {loading && (
-                        <Fade in={true}>
-                            <Box sx={{
-                                position: 'absolute',
-                                top: '50%',
-                                left: '50%',
-                                transform: 'translate(-50%, -50%)',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                gap: 1
-                            }}>
-                                <CircularProgress 
-                                    size={24} 
-                                    sx={{ 
-                                        ...animations.spin,
-                                        color: 'primary.main'
-                                    }} 
-                                />
-                                <Typography 
-                                    variant="caption" 
-                                    color="text.secondary"
-                                >
-                                    Rendering...
-                                </Typography>
-                            </Box>
-                        </Fade>
-                    )}
-                    {error ? (
-                        <Tooltip title={error} arrow>
-                            <Box sx={{ 
-                                p: 2, 
-                                textAlign: 'center',
-                                color: 'error.main'
-                            }}>
-                                <Typography variant="body2">
-                                    ⚠️ Failed to render molecule
-                                </Typography>
-                            </Box>
-                        </Tooltip>
-                    ) : (
-                        <Box
-                            component="div"
-                            dangerouslySetInnerHTML={{ __html: svgContent }}
-                            sx={{
-                                opacity: loading ? 0.5 : 1,
-                                transition: 'opacity 0.3s ease-in-out'
-                            }}
-                        />
-                    )}
-                </Box>
-                {showStatus && status && (
-                    <Chip
-                        label={status}
-                        size="small"
-                        color={error ? 'error' : 'success'}
-                        sx={transitions.chip}
-                    />
-                )}
-            </Paper>
-        </Grow>
+                dangerouslySetInnerHTML={{ __html: svgContent }}
+            />
+            {showStatus && (
+                <div style={{ marginTop: 4, fontSize: 12, color: status.includes('success') ? '#4caf50' : '#f44336' }}>
+                    {status}
+                </div>
+            )}
+        </div>
     );
 }; 

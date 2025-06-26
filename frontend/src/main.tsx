@@ -6,6 +6,10 @@ import App from './App'
 import CreateReactionPage from './pages/CreateReactionPage'
 import HomePage from './pages/HomePage'
 
+if (typeof window !== 'undefined' && typeof window.global === 'undefined') {
+  window.global = window;
+}
+
 const router = createBrowserRouter([
   {
     path: '/',

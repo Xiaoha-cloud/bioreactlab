@@ -12,10 +12,10 @@ const App: React.FC = () => {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline />
-            <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/create-reaction" element={<CreateReactionPage />} />
-            </Routes>
+                <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/create-reaction" element={<CreateReactionPage />} />
+                </Routes>
         </ThemeProvider>
     );
 };
